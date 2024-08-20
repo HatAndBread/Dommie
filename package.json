@@ -1,0 +1,16 @@
+{
+  "name": "hello",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.js",
+    "dev": "bun --watch run index.ts",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
