@@ -1,35 +1,69 @@
 import type { Template } from "../index.ts";
-import type { ClicksArgs } from "../client/index.ts";
 import { templater } from "../lib/templater.ts";
 import button from "../components/button.ts";
+import type { ClicksArgs } from "../client-lib/index.ts";
 
-export const init = () => {
+export const init = (request: Request) => {
+  console.log("Here is the request!");
+  console.log(request);
   return t(templater());
 };
 
+const state = {
+  value: 0,
+};
+
 export const client = {
-  increment: ({ replaceTargetInner, target }: ClicksArgs) => {
-    replaceTargetInner(parseInt(target.innerHTML) + 1);
+  increment: ({ replaceTargetInner, targets }: ClicksArgs) => {
+    state.value++;
+    replaceTargetInner(state.value);
   },
-  decrement: ({ replaceTargetOuter, target }: ClicksArgs) => {
-    replaceTargetOuter(parseInt(target.innerHTML) - 1);
+  decrement: ({ replaceTargetInner, targets }: ClicksArgs) => {
+    state.value--;
+    replaceTargetInner(state.value);
+  },
+  showSomething: ({ replaceTargetInner, targets }: ClicksArgs) => {
+    const h = templater();
+    console.log(targets);
+    h.div(() => {
+      h.text("Hello" + Math.random());
+      h.div({ subscribes: [client.showSomething] }, () => {
+        h.text("I am a div");
+      });
+    });
+    replaceTargetInner(h.generate());
   },
 };
 
 export const t = (h: Template) => {
-  return h("div", { style: "background-color: red;" }, () => {
-    h("a", () => {
-      h("div");
+  h.div({ style: "background-color: red;", root: true }, () => {
+    h.a({ href: "https://www.google.com" }, () => {
+      h.text("I am a link");
     });
-    h(["I am some text"]);
-    h("br");
-    h(["I am some more text"]);
-    h("small", () => {
-      button(h);
+    h.text("I am some text");
+    h.br();
+    h.text("I am some more text");
+    h.div({ subscribes: [client.decrement] }, () => {
+      h.text(0);
     });
-    h("div", { id: "counter" }, () => {
-      h(["0"]);
+    h.small(() => {
+      button(h, client.increment, client.decrement);
     });
-    h("script", { src: "/public/index.js", type: "text/javascript" });
+    h.div(
+      { id: "counter", subscribes: [client.increment, client.decrement] },
+      () => {
+        h.text("0");
+      },
+    );
+    h.div({ subscribes: [client.showSomething] });
+    h.comment("This is a comment!");
+    h.button({ clicks: client.showSomething }, () => {
+      h.text("show something");
+    });
+    h.script({
+      src: "./index.js",
+      type: "text/javascript",
+    });
   });
+  return h.generate();
 };
