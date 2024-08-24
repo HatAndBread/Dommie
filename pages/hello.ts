@@ -1,69 +1,85 @@
 import type { Template } from "../index.ts";
-import { templater } from "../lib/templater.ts";
-import button from "../components/button.ts";
-import type { ClicksArgs } from "../client-lib/index.ts";
+import { templater, templater2 } from "../lib/templater.ts";
+import { child } from "../components/child.ts";
+import type { AllElements } from "../lib/templater.ts";
 
-export const init = (request: Request) => {
-  console.log("Here is the request!");
-  console.log(request);
-  return t(templater());
-};
+const t: AppInput = (h) => {
+  let value = 0;
+  let width = 100;
+  const stuff: number[] = [];
 
-const state = {
-  value: 0,
-};
+  const updateWidth = () => (width += 1);
+  const updateValue = (v: number) => (value += v);
 
-export const client = {
-  increment: ({ replaceTargetInner, targets }: ClicksArgs) => {
-    state.value++;
-    replaceTargetInner(state.value);
-  },
-  decrement: ({ replaceTargetInner, targets }: ClicksArgs) => {
-    state.value--;
-    replaceTargetInner(state.value);
-  },
-  showSomething: ({ replaceTargetInner, targets }: ClicksArgs) => {
-    const h = templater();
-    console.log(targets);
-    h.div(() => {
-      h.text("Hello" + Math.random());
-      h.div({ subscribes: [client.showSomething] }, () => {
-        h.text("I am a div");
-      });
-    });
-    replaceTargetInner(h.generate());
-  },
-};
+  const addToStuff = () => {
+    stuff.push((stuff[stuff.length - 1] || 0) + 11);
+  };
 
-export const t = (h: Template) => {
-  h.div({ style: "background-color: red;", root: true }, () => {
+  return h.div({ style: "background-color: red;" }, () => {
     h.a({ href: "https://www.google.com" }, () => {
       h.text("I am a link");
     });
     h.text("I am some text");
     h.br();
     h.text("I am some more text");
-    h.div({ subscribes: [client.decrement] }, () => {
-      h.text(0);
+    h.div({ subscribe: [updateValue] }, () => {
+      h.text(value);
     });
-    h.small(() => {
-      button(h, client.increment, client.decrement);
+    h.button({ click: [updateValue, [1]] }, () => {
+      h.text("Increment");
     });
-    h.div(
-      { id: "counter", subscribes: [client.increment, client.decrement] },
-      () => {
-        h.text("0");
-      },
-    );
-    h.div({ subscribes: [client.showSomething] });
+    h.button({ click: [updateValue, [-1]] }, () => {
+      h.text("Decrement");
+    });
+    h.button({ click: addToStuff }, () => {
+      h.text("Add to stuff");
+    });
+    h.ul({ subscribe: [addToStuff] }, () => {
+      stuff.forEach((thing) => {
+        h.li({ style: { backgroundColor: "orange" } }, () => {
+          h.text(`I am a list item with value: ${thing}`);
+        });
+      });
+    });
+    h.div({ subscribe: [updateWidth] }, () => {
+      h.div(
+        {
+          style: {
+            backgroundColor: "pink",
+            width: `${width}px`,
+            height: "100px",
+          },
+          mouseover: updateWidth,
+        },
+        () => {
+          h.text("mouse over me");
+        },
+      );
+    });
     h.comment("This is a comment!");
-    h.button({ clicks: client.showSomething }, () => {
-      h.text("show something");
-    });
-    h.script({
-      src: "./index.js",
-      type: "text/javascript",
-    });
   });
-  return h.generate();
 };
+
+// LIB
+const toPascalCase = (str: string) =>
+  (str.match(/[a-zA-Z0-9]+/g) || [])
+    .map((w) => `${w.charAt(0).toUpperCase()}${w.slice(1)}`)
+    .join("");
+const camelize = (str: string) => {
+  const pascaled = toPascalCase(str);
+  return pascaled.charAt(0).toLowerCase() + pascaled.slice(1);
+};
+
+export type AppInput = (h: Template) => AllElements;
+const app = (i: AppInput, id: string) => {
+  const el = document.getElementById(id);
+  if (!el) {
+    console.error("No element found with id: " + id);
+    return;
+  }
+  const x = templater2(el);
+  i(x);
+  console.log(x);
+};
+
+app(t, "app");

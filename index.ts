@@ -22,11 +22,6 @@ console.log(controllers);
 const x = await Bun.build({
   entrypoints: [...clientLibToBundle, ...pagesToBundle],
   outdir: "./public",
-  minify: {
-    identifiers: true,
-    whitespace: true,
-    syntax: true,
-  },
 });
 console.log("Build result: ");
 console.log(x);
