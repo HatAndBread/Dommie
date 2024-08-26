@@ -4,7 +4,7 @@ function templater2(root) {
   for (const elementName of ALL_HTML_ELEMENTS) {
     allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
   }
-  const functionSubcribersMap = new Map;
+  const functionSubscribersMap = new Map;
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -29,19 +29,19 @@ function templater2(root) {
     const element = document.createElement(tag);
     for (let key in optionsOrCb) {
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
-        optionsOrCb[key] = Object.entries(optionsOrCb[key]).map(([styleKey, styleValue]) => {
-          return `${toSnakeCase(styleKey)}: ${styleValue};`;
+        const style = Object.entries(optionsOrCb[key]).map(([styleKey, styleValue]) => {
+          return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
         }).join(" ");
-      }
-      if (key === "subscribe") {
+        element.setAttribute(key, style);
+      } else if (key === "subscribe") {
         if (shouldAppend) {
           const funcs = optionsOrCb[key];
           funcs.forEach((f) => {
             const regenerator = () => $(tag, optionsOrCb, cb, false);
-            if (functionSubcribersMap.get(f)) {
-              functionSubcribersMap.get(f)?.push([element, regenerator]);
+            if (functionSubscribersMap.get(f)) {
+              functionSubscribersMap.get(f)?.push([element, regenerator]);
             } else {
-              functionSubcribersMap.set(f, [[element, regenerator]]);
+              functionSubscribersMap.set(f, [[element, regenerator]]);
             }
           });
         }
@@ -63,19 +63,20 @@ function templater2(root) {
           if (!func) {
             throw new Error("What??? \uD83E\uDD14");
           } else {
-            func(...args);
+            func(e, ...args);
           }
-          const subscribers = functionSubcribersMap.get(func);
+          const subscribers = functionSubscribersMap.get(func);
           subscribers?.forEach((subscriber) => {
             const newEl = subscriber[1]();
             const oldEl = subscriber[0];
-            Array.from(functionSubcribersMap.values()).forEach((subs) => {
+            Array.from(functionSubscribersMap.values()).forEach((subs) => {
               subs.forEach((sub) => {
                 if (sub[0] === oldEl) {
                   sub[0] = newEl;
                 }
               });
             });
+            console.log(newEl);
             oldEl.replaceWith(newEl);
           });
         };
@@ -188,7 +189,7 @@ var allEventListeners = [
   "wheel"
 ];
 var toSnakeCase = (str) => {
-  return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+  return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`).replace("_", "-");
 };
 var ALL_HTML_ELEMENTS = [
   "a",
@@ -328,13 +329,68 @@ var t = (h) => {
   let value = 0;
   let width = 100;
   const stuff = [];
+  const colors = [
+    "blue",
+    "green",
+    "yellow",
+    "purple",
+    "orange",
+    "pink",
+    "black",
+    "white",
+    "gray",
+    "brown",
+    "cyan",
+    "magenta",
+    "teal",
+    "olive",
+    "navy",
+    "maroon",
+    "aquamarine",
+    "turquoise",
+    "silver",
+    "lime",
+    "fuchsia",
+    "indigo",
+    "violet",
+    "pink",
+    "orange",
+    "gold",
+    "orchid",
+    "plum",
+    "coral",
+    "khaki",
+    "azure",
+    "lavender",
+    "salmon",
+    "peru",
+    "wheat",
+    "tan",
+    "sienna",
+    "thistle",
+    "bisque",
+    "moccasin",
+    "snow",
+    "seashell",
+    "honeydew",
+    "ivory",
+    "linen",
+    "oldLace",
+    "beige",
+    "gainsboro",
+    "silver",
+    "gray",
+    "black"
+  ];
   const updateWidth = () => width += 1;
-  const updateValue = (v) => {
-    value += v;
-  };
-  const addToStuff = () => {
+  const updateValue = (_, v) => value += v;
+  const addToStuff = (e) => {
+    console.log(e);
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
   };
+  const thing = (text) => h.div(() => {
+    h.text(`I am ${text}`);
+  });
   return h.div({ style: "background-color: red;" }, () => {
     h.a({ href: "https://www.google.com" }, () => {
       h.text("I am a link");
@@ -351,27 +407,38 @@ var t = (h) => {
     h.button({ click: [updateValue, [-1]] }, () => {
       h.text("Decrement");
     });
-    h.button({ click: addToStuff }, () => {
-      h.text("Add to stuff");
+    thing("baka");
+    h.button({ click: addToStuff, subscribe: [addToStuff] }, () => {
+      h.text("Add to stuff" + stuff.length);
     });
-    h.ul({ subscribe: [addToStuff] }, () => {
-      stuff.forEach((thing) => {
-        h.li({ style: { backgroundColor: "orange" } }, () => {
-          h.text(`I am a list item with value: ${thing}`);
+    thing("Aho");
+    h.ul({
+      subscribe: [addToStuff],
+      style: {
+        backgroundColor: () => colors[Math.floor(Math.random() * colors.length)]
+      }
+    }, () => {
+      stuff.forEach((thing2) => {
+        h.li({
+          style: {
+            backgroundColor: colors[Math.floor(Math.random() * colors.length)]
+          }
+        }, () => {
+          h.text(`I am a list item with value: ${thing2}`);
         });
       });
     });
-    h.div({ subscribe: [updateWidth] }, () => {
-      h.div({
-        style: {
-          backgroundColor: "pink",
-          width: `${width}px`,
-          height: "100px"
-        },
-        mouseover: updateWidth
-      }, () => {
-        h.text("mouse over me");
-      });
+    h.div({
+      subscribe: [updateWidth],
+      style: {
+        backgroundColor: "pink",
+        width: () => `${width}px`,
+        height: "100px"
+      },
+      class: () => `${width}`,
+      mouseover: updateWidth
+    }, () => {
+      h.text("mouse over me");
     });
     h.comment("This is a comment!");
   });

@@ -3,17 +3,85 @@ import { templater, templater2 } from "../lib/templater.ts";
 import { child } from "../components/child.ts";
 import type { AllElements } from "../lib/templater.ts";
 
+// const createState = (value: any) => {
+//   const state = { value };
+//   const useValue = (callback?: (currentValue: { value: any }) => any) => {
+//     if (callback) callback(state);
+//     return [useValue, state];
+//   };
+//   return useValue;
+// };
 const t: AppInput = (h) => {
   let value = 0;
   let width = 100;
   const stuff: number[] = [];
+  const colors = [
+    "blue",
+    "green",
+    "yellow",
+    "purple",
+    "orange",
+    "pink",
+    "black",
+    "white",
+    "gray",
+    "brown",
+    "cyan",
+    "magenta",
+    "teal",
+    "olive",
+    "navy",
+    "maroon",
+    "aquamarine",
+    "turquoise",
+    "silver",
+    "lime",
+    "fuchsia",
+    "indigo",
+    "violet",
+    "pink",
+    "orange",
+    "gold",
+    "orchid",
+    "plum",
+    "coral",
+    "khaki",
+    "azure",
+    "lavender",
+    "salmon",
+    "peru",
+    "wheat",
+    "tan",
+    "sienna",
+    "thistle",
+    "bisque",
+    "moccasin",
+    "snow",
+    "seashell",
+    "honeydew",
+    "ivory",
+    "linen",
+    "oldLace",
+    "beige",
+    "gainsboro",
+    "silver",
+    "gray",
+    "black",
+  ];
+
+  // const useHello = createState("hello");
 
   const updateWidth = () => (width += 1);
-  const updateValue = (v: number) => (value += v);
+  const updateValue = (_: Event, v: number) => (value += v);
 
-  const addToStuff = () => {
+  const addToStuff = (e: Event) => {
+    console.log(e);
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
   };
+  const thing = (text: string) =>
+    h.div(() => {
+      h.text(`I am ${text}`);
+    });
 
   return h.div({ style: "background-color: red;" }, () => {
     h.a({ href: "https://www.google.com" }, () => {
@@ -31,31 +99,57 @@ const t: AppInput = (h) => {
     h.button({ click: [updateValue, [-1]] }, () => {
       h.text("Decrement");
     });
-    h.button({ click: addToStuff }, () => {
-      h.text("Add to stuff");
+    thing("baka");
+    h.button({ click: addToStuff, subscribe: [addToStuff] }, () => {
+      h.text("Add to stuff" + stuff.length);
     });
-    h.ul({ subscribe: [addToStuff] }, () => {
-      stuff.forEach((thing) => {
-        h.li({ style: { backgroundColor: "orange" } }, () => {
-          h.text(`I am a list item with value: ${thing}`);
+    // h.button({ click: useHello((s) => (s.value = "Stupid")) }, () => {
+    //   h.text("Use hello");
+    // });
+    // h.div({ subscribe: [useHello], class: useHello((s) => s.value) }, () => {
+    //   console.log(useHello);
+    //   h.text("This is useHello");
+    // });
+    thing("Aho");
+    h.ul(
+      {
+        subscribe: [addToStuff],
+        style: {
+          backgroundColor: () =>
+            colors[Math.floor(Math.random() * colors.length)],
+        },
+      },
+      () => {
+        stuff.forEach((thing) => {
+          h.li(
+            {
+              style: {
+                backgroundColor:
+                  colors[Math.floor(Math.random() * colors.length)],
+              },
+            },
+            () => {
+              h.text(`I am a list item with value: ${thing}`);
+            },
+          );
         });
-      });
-    });
-    h.div({ subscribe: [updateWidth] }, () => {
-      h.div(
-        {
-          style: {
-            backgroundColor: "pink",
-            width: `${width}px`,
-            height: "100px",
-          },
-          mouseover: updateWidth,
+      },
+    );
+    h.div(
+      {
+        subscribe: [updateWidth],
+        style: {
+          backgroundColor: "pink",
+          width: () => `${width}px`,
+          height: "100px",
         },
-        () => {
-          h.text("mouse over me");
-        },
-      );
-    });
+        class: () => `${width}`,
+        mouseover: updateWidth,
+      },
+      () => {
+        h.text("mouse over me");
+      },
+    );
     h.comment("This is a comment!");
   });
 };

@@ -364,7 +364,9 @@ export function templater() {
 }
 
 const toSnakeCase = (str: string) => {
-  return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+  return str
+    .replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+    .replace("_", "-");
 };
 
 export function templater2(root: Element) {
@@ -374,7 +376,7 @@ export function templater2(root: Element) {
     allElements[elementName] = (optionsOrCb: any = {}, cb?: Function) =>
       $(elementName, optionsOrCb, cb);
   }
-  const functionSubcribersMap = new Map<
+  const functionSubscribersMap = new Map<
     Function,
     [Element, () => HTMLElement | Comment][]
   >();
@@ -407,21 +409,21 @@ export function templater2(root: Element) {
     const element = document.createElement(tag);
     for (let key in optionsOrCb) {
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
-        optionsOrCb[key] = Object.entries(optionsOrCb[key])
+        const style = Object.entries(optionsOrCb[key])
           .map(([styleKey, styleValue]) => {
-            return `${toSnakeCase(styleKey)}: ${styleValue};`;
+            return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
           })
           .join(" ");
-      }
-      if (key === "subscribe") {
+        element.setAttribute(key, style);
+      } else if (key === "subscribe") {
         if (shouldAppend) {
           const funcs = optionsOrCb[key] as Function[];
           funcs.forEach((f) => {
             const regenerator = () => $(tag, optionsOrCb, cb, false);
-            if (functionSubcribersMap.get(f)) {
-              functionSubcribersMap.get(f)?.push([element, regenerator]);
+            if (functionSubscribersMap.get(f)) {
+              functionSubscribersMap.get(f)?.push([element, regenerator]);
             } else {
-              functionSubcribersMap.set(f, [[element, regenerator]]);
+              functionSubscribersMap.set(f, [[element, regenerator]]);
             }
           });
         }
@@ -450,19 +452,20 @@ export function templater2(root: Element) {
           if (!func) {
             throw new Error("What??? 🤔");
           } else {
-            func(...args);
+            func(e, ...args);
           }
-          const subscribers = functionSubcribersMap.get(func);
+          const subscribers = functionSubscribersMap.get(func);
           subscribers?.forEach((subscriber) => {
             const newEl = subscriber[1]();
             const oldEl = subscriber[0];
-            Array.from(functionSubcribersMap.values()).forEach((subs) => {
+            Array.from(functionSubscribersMap.values()).forEach((subs) => {
               subs.forEach((sub) => {
                 if (sub[0] === oldEl) {
                   sub[0] = newEl;
                 }
               });
             });
+            console.log(newEl);
             oldEl.replaceWith(newEl);
           });
         };
