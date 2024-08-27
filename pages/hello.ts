@@ -1,16 +1,7 @@
 import type { Template } from "../index.ts";
-import { templater, templater2 } from "../lib/templater.ts";
-import { child } from "../components/child.ts";
-import type { AllElements } from "../lib/templater.ts";
+import { templater2 } from "../lib/templater.ts";
+import type { AllElements } from "../lib/types.ts";
 
-// const createState = (value: any) => {
-//   const state = { value };
-//   const useValue = (callback?: (currentValue: { value: any }) => any) => {
-//     if (callback) callback(state);
-//     return [useValue, state];
-//   };
-//   return useValue;
-// };
 const t: AppInput = (h) => {
   let value = 0;
   let width = 100;
