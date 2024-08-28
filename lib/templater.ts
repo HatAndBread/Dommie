@@ -174,7 +174,12 @@ export function templater2(root: Element) {
         };
         element.addEventListener(key, funcWrapper);
       } else {
-        element.setAttribute(key, optionsOrCb[key]);
+        element.setAttribute(
+          key,
+          typeof optionsOrCb[key] === "function"
+            ? optionsOrCb[key]()
+            : optionsOrCb[key],
+        );
       }
     }
     if (typeof cb === "function") {

@@ -1,106 +1,4 @@
-// lib/templater.ts
-function templater2(root) {
-  const allElements = {};
-  for (const elementName of ALL_HTML_ELEMENTS) {
-    allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
-  }
-  const functionSubscribersMap = new Map;
-  const nesting = [root];
-  function $(tag, optionsOrCb, cb, shouldAppend = true) {
-    const parent = nesting[nesting.length - 1];
-    if (tag === "text") {
-      const node = document.createTextNode(optionsOrCb);
-      if (shouldAppend)
-        parent.appendChild(node);
-      return node;
-    }
-    if (tag === "comment") {
-      const comment = document.createComment("My comments");
-      if (shouldAppend)
-        parent.appendChild(comment);
-      return comment;
-    }
-    if (tag === "custom") {
-    }
-    if (typeof optionsOrCb === "function") {
-      cb = optionsOrCb;
-      optionsOrCb = {};
-    }
-    const element = document.createElement(tag);
-    for (let key in optionsOrCb) {
-      if (key === "style" && typeof optionsOrCb[key] !== "string") {
-        const style = Object.entries(optionsOrCb[key]).map(([styleKey, styleValue]) => {
-          return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
-        }).join(" ");
-        element.setAttribute(key, style);
-      } else if (key === "subscribe") {
-        if (shouldAppend) {
-          const funcs = optionsOrCb[key];
-          funcs.forEach((f) => {
-            const regenerator = () => $(tag, optionsOrCb, cb, false);
-            if (functionSubscribersMap.get(f)) {
-              functionSubscribersMap.get(f)?.push([element, regenerator]);
-            } else {
-              functionSubscribersMap.set(f, [[element, regenerator]]);
-            }
-          });
-        }
-      } else if (allEventListeners.includes(key)) {
-        let func;
-        let args = [];
-        const eventDefinition = optionsOrCb[key];
-        if (typeof eventDefinition === "function") {
-          func = eventDefinition;
-        } else if (Array.isArray(eventDefinition) && typeof eventDefinition[0] === "function" && (typeof eventDefinition[1] === "undefined" || Array.isArray(eventDefinition[1]))) {
-          func = eventDefinition[0];
-          if (eventDefinition[1]) {
-            args = eventDefinition[1];
-          }
-        } else {
-          throw new Error(`Listeners must be a function or an array of function and arguments. Recieved ${key}, ${eventDefinition}`);
-        }
-        const funcWrapper = (e) => {
-          if (!func) {
-            throw new Error("What??? \uD83E\uDD14");
-          } else {
-            func(e, ...args);
-          }
-          const subscribers = functionSubscribersMap.get(func);
-          subscribers?.forEach((subscriber) => {
-            const newEl = subscriber[1]();
-            const oldEl = subscriber[0];
-            Array.from(functionSubscribersMap.values()).forEach((subs) => {
-              subs.forEach((sub) => {
-                if (sub[0] === oldEl) {
-                  sub[0] = newEl;
-                }
-              });
-            });
-            console.log(newEl);
-            oldEl.replaceWith(newEl);
-          });
-        };
-        element.addEventListener(key, funcWrapper);
-      } else {
-        element.setAttribute(key, optionsOrCb[key]);
-      }
-    }
-    if (typeof cb === "function") {
-      nesting.push(element);
-      cb();
-      nesting.pop();
-      if (shouldAppend)
-        parent.appendChild(element);
-    } else if (cb) {
-      throw new Error("Callback must be a function!");
-    } else {
-      if (shouldAppend)
-        parent.appendChild(element);
-    }
-    return element;
-  }
-  return allElements;
-}
+// lib/all-event-listeners.ts
 var allEventListeners = [
   "abort",
   "afterprint",
@@ -188,10 +86,14 @@ var allEventListeners = [
   "waiting",
   "wheel"
 ];
+
+// lib/strings.ts
 var toSnakeCase = (str) => {
   return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`).replace("_", "-");
 };
-var ALL_HTML_ELEMENTS = [
+
+// lib/html-elements.ts
+var allHtmlElements = [
   "a",
   "abbr",
   "acronym",
@@ -323,6 +225,110 @@ var ALL_HTML_ELEMENTS = [
   "wbr",
   "xmp"
 ];
+
+// lib/templater.ts
+function templater2(root) {
+  const allElements = {};
+  for (const elementName of allHtmlElements) {
+    allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
+  }
+  const functionSubscribersMap = new Map;
+  const nesting = [root];
+  function $(tag, optionsOrCb, cb, shouldAppend = true) {
+    const parent = nesting[nesting.length - 1];
+    if (tag === "text") {
+      const node = document.createTextNode(optionsOrCb);
+      if (shouldAppend)
+        parent.appendChild(node);
+      return node;
+    }
+    if (tag === "comment") {
+      const comment = document.createComment("My comments");
+      if (shouldAppend)
+        parent.appendChild(comment);
+      return comment;
+    }
+    if (tag === "custom") {
+    }
+    if (typeof optionsOrCb === "function") {
+      cb = optionsOrCb;
+      optionsOrCb = {};
+    }
+    const element = document.createElement(tag);
+    for (let key in optionsOrCb) {
+      if (key === "style" && typeof optionsOrCb[key] !== "string") {
+        const style = Object.entries(optionsOrCb[key]).map(([styleKey, styleValue]) => {
+          return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
+        }).join(" ");
+        element.setAttribute(key, style);
+      } else if (key === "subscribe") {
+        if (shouldAppend) {
+          const funcs = optionsOrCb[key];
+          funcs.forEach((f) => {
+            const regenerator = () => $(tag, optionsOrCb, cb, false);
+            if (functionSubscribersMap.get(f)) {
+              functionSubscribersMap.get(f)?.push([element, regenerator]);
+            } else {
+              functionSubscribersMap.set(f, [[element, regenerator]]);
+            }
+          });
+        }
+      } else if (allEventListeners.includes(key)) {
+        let func;
+        let args = [];
+        const eventDefinition = optionsOrCb[key];
+        if (typeof eventDefinition === "function") {
+          func = eventDefinition;
+        } else if (Array.isArray(eventDefinition) && typeof eventDefinition[0] === "function" && (typeof eventDefinition[1] === "undefined" || Array.isArray(eventDefinition[1]))) {
+          func = eventDefinition[0];
+          if (eventDefinition[1]) {
+            args = eventDefinition[1];
+          }
+        } else {
+          throw new Error(`Listeners must be a function or an array of function and arguments. Recieved ${key}, ${eventDefinition}`);
+        }
+        const funcWrapper = (e) => {
+          if (!func) {
+            throw new Error("What??? \uD83E\uDD14");
+          } else {
+            func(e, ...args);
+          }
+          const subscribers = functionSubscribersMap.get(func);
+          subscribers?.forEach((subscriber) => {
+            const newEl = subscriber[1]();
+            const oldEl = subscriber[0];
+            Array.from(functionSubscribersMap.values()).forEach((subs) => {
+              subs.forEach((sub) => {
+                if (sub[0] === oldEl) {
+                  sub[0] = newEl;
+                }
+              });
+            });
+            console.log(newEl);
+            oldEl.replaceWith(newEl);
+          });
+        };
+        element.addEventListener(key, funcWrapper);
+      } else {
+        element.setAttribute(key, typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key]);
+      }
+    }
+    if (typeof cb === "function") {
+      nesting.push(element);
+      cb();
+      nesting.pop();
+      if (shouldAppend)
+        parent.appendChild(element);
+    } else if (cb) {
+      throw new Error("Callback must be a function!");
+    } else {
+      if (shouldAppend)
+        parent.appendChild(element);
+    }
+    return element;
+  }
+  return allElements;
+}
 
 // pages/hello.ts
 var t = (h) => {
