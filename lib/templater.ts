@@ -2,6 +2,7 @@ import type { AllElements } from "./types.ts";
 import { allEventListeners } from "./all-event-listeners.ts";
 import { toSnakeCase } from "./strings.ts";
 import { allHtmlElements, isSelfClosing } from "./html-elements.ts";
+import { DiffDOM } from "diff-dom";
 
 export function templater() {
   let template = "";
@@ -72,6 +73,7 @@ export function templater() {
   return allElements;
 }
 
+const domDiffer = new DiffDOM();
 export function templater2(root: Element) {
   const allElements = <AllElements>{};
   for (const elementName of allHtmlElements) {
@@ -161,15 +163,8 @@ export function templater2(root: Element) {
           subscribers?.forEach((subscriber) => {
             const newEl = subscriber[1]();
             const oldEl = subscriber[0];
-            Array.from(functionSubscribersMap.values()).forEach((subs) => {
-              subs.forEach((sub) => {
-                if (sub[0] === oldEl) {
-                  sub[0] = newEl;
-                }
-              });
-            });
-            console.log(newEl);
-            oldEl.replaceWith(newEl);
+            const diff = domDiffer.diff(oldEl, newEl);
+            domDiffer.apply(oldEl, diff);
           });
         };
         element.addEventListener(key, funcWrapper);

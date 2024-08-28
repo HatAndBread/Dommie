@@ -12,5 +12,8 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "diff-dom": "^5.1.4"
   }
 }
