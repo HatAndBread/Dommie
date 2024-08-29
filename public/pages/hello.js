@@ -1853,49 +1853,8 @@ function templater2(root) {
   for (const elementName of allHtmlElements) {
     allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
   }
-  const functionSubscribersMap = new Map;
-  const elementToEventListeners = new Map;
-  const listenerList = [];
-  allElements.stateUpdater = (callback) => {
-    const getFuncWrapper = () => {
-      const funcWrapper = (e, args = []) => {
-        const needListeners = [];
-        const domDiffer = new DiffDOM({
-          postVirtualDiffApply: function(d) {
-            console.log("postVirtualDiffApply");
-            console.log(d);
-            if (d.diff?.action === "addElement" && d.diff?.element?.attributes?.["data-listener-index"]) {
-              needListeners.push(d.diff.element.attributes["data-listener-index"]);
-            }
-          }
-        });
-        callback(e, ...args);
-        const subscribers = functionSubscribersMap.get(funcWrapper);
-        subscribers?.forEach((subscriber) => {
-          const newEl = subscriber[1]();
-          const oldEl = subscriber[0];
-          const diff = domDiffer.diff(oldEl, newEl);
-          console.log("HERE is needListeners");
-          domDiffer.apply(oldEl, diff);
-          needListeners.forEach((index) => {
-            const listener = listenerList[parseInt(index)];
-            if (!listener) {
-              throw new Error("Listener not found!");
-            }
-            const elToApplyListenerTo = oldEl.querySelector("[data-listener-index='" + index + "']");
-            if (elToApplyListenerTo) {
-              console.log("\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37");
-              elToApplyListenerTo.addEventListener(listener[1], listener[0]);
-            }
-          });
-        });
-      };
-      return funcWrapper;
-    };
-    const wrapper = getFuncWrapper();
-    functionSubscribersMap.set(wrapper, []);
-    return wrapper;
-  };
+  setRef(allElements);
+  const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -1925,9 +1884,7 @@ function templater2(root) {
         }).join(" ");
         element.setAttribute(key, style);
       } else if (key === "subscribe") {
-        console.log("not inside subscribe!");
         if (shouldAppend) {
-          console.log(" inside subscribe!");
           const funcs = optionsOrCb[key];
           funcs.forEach((f) => {
             const regenerator = () => $(tag, optionsOrCb, cb, false);
@@ -1952,14 +1909,21 @@ function templater2(root) {
         } else {
           throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
         }
-        console.log(listenerList.length);
-        const funcIndex = listenerList.findIndex((f) => f[0] === func);
+        const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
         element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
-        elementToEventListeners.set(element, new Map([[key, func]]));
         if (funcIndex === -1) {
-          listenerList.push([(e) => func(e, args), key]);
+          listenerList.push({
+            eventType: key,
+            callback: (e) => func(e, args),
+            originalCallback: func
+          });
         }
         element.addEventListener(key, (e) => func(e, args));
+      } else if (key === "ref") {
+        if (typeof optionsOrCb[key] !== "function") {
+          throw new Error("Ref must be a function");
+        }
+        optionsOrCb[key](element);
       } else {
         element.setAttribute(key, typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key]);
       }
@@ -1980,6 +1944,65 @@ function templater2(root) {
   }
   return allElements;
 }
+var setRef = (templater) => {
+  templater._refs = [];
+  const funcElementMap = new Map;
+  templater.ref = () => {
+    const func = (el) => {
+      if (el) {
+        funcElementMap.set(func, el);
+        templater._refs.push(el);
+        return el;
+      } else {
+        return funcElementMap.get(func) || null;
+      }
+    };
+    return func;
+  };
+};
+var setStateUpdater = (templater) => {
+  const functionSubscribersMap = new Map;
+  const listenerList = [];
+  templater.stateUpdater = (callback) => {
+    const getFuncWrapper = () => {
+      const funcWrapper = (e, args = []) => {
+        const needListeners = [];
+        const domDiffer = new DiffDOM({
+          postVirtualDiffApply: function(d) {
+            const listenerIndex = d.diff?.element?.attributes?.["data-listener-index"];
+            if (d.diff?.action === "addElement" && listenerIndex) {
+              needListeners.push(listenerIndex);
+            } else if (d.diff?.action === "removeElement" && listenerIndex) {
+              listenerList[parseInt(d.diff.element.attributes["data-listener-index"])] = null;
+            }
+          }
+        });
+        callback(e, ...args);
+        const subscribers = functionSubscribersMap.get(funcWrapper);
+        subscribers?.forEach((subscriber) => {
+          const newEl = subscriber[1]();
+          const oldEl = subscriber[0];
+          const diff = domDiffer.diff(oldEl, newEl);
+          domDiffer.apply(oldEl, diff);
+          needListeners.forEach((index) => {
+            const listener = listenerList[parseInt(index)];
+            if (listener) {
+              const elToApplyListenerTo = oldEl.querySelector("[data-listener-index='" + index + "']");
+              if (elToApplyListenerTo) {
+                elToApplyListenerTo.addEventListener(listener.eventType, listener.callback);
+              }
+            }
+          });
+        });
+      };
+      return funcWrapper;
+    };
+    const wrapper = getFuncWrapper();
+    functionSubscribersMap.set(wrapper, []);
+    return wrapper;
+  };
+  return { functionSubscribersMap, listenerList };
+};
 
 // pages/hello.ts
 var t = (h) => {
@@ -2038,6 +2061,7 @@ var t = (h) => {
     "gray",
     "black"
   ];
+  const ref = h.ref();
   let word = "\uD83E\uDD53";
   const updateWord = h.stateUpdater(() => {
     const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
@@ -2072,7 +2096,7 @@ var t = (h) => {
     });
     h.div({ subscribe: [toggleBool] }, () => {
       if (!someBool) {
-        h.button({ click: toggleBool }, () => {
+        h.button({ click: toggleBool, ref }, () => {
           h.text("someBool is false");
         });
       }

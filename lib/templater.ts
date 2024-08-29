@@ -20,9 +20,7 @@ export function templater() {
   };
   function $(
     tag: string,
-    optionsOrCb:
-      | { [key: string]: string | number | Function[] | Function }
-      | Function = {},
+    optionsOrCb: { [key: string]: string | number | Function[] | Function } | Function = {},
     cb?: Function,
   ) {
     if (tag === "text") {
@@ -80,66 +78,11 @@ export function templater2(root: Element) {
     allElements[elementName] = (optionsOrCb: any = {}, cb?: Function) =>
       $(elementName, optionsOrCb, cb);
   }
-  const functionSubscribersMap = new Map<
-    Function,
-    [Element, () => HTMLElement | Comment][]
-  >();
-  const elementToEventListeners = new Map<Element, Map<string, Function>>();
-  const listenerList = [];
-  allElements.stateUpdater = (callback: Function) => {
-    const getFuncWrapper = () => {
-      const funcWrapper = (e: Event, args: any[] = []) => {
-        const needListeners: string[] = [];
-        const domDiffer = new DiffDOM({
-          postVirtualDiffApply: function (d) {
-            console.log("postVirtualDiffApply");
-            console.log(d);
-            if (
-              d.diff?.action === "addElement" &&
-              d.diff?.element?.attributes?.["data-listener-index"]
-            ) {
-              needListeners.push(
-                d.diff.element.attributes["data-listener-index"],
-              );
-            }
-          },
-        });
-        callback(e, ...args);
-        const subscribers = functionSubscribersMap.get(funcWrapper);
-        subscribers?.forEach((subscriber) => {
-          const newEl = subscriber[1]();
-          const oldEl = subscriber[0];
-          const diff = domDiffer.diff(oldEl, newEl);
-          console.log("HERE is needListeners");
-          domDiffer.apply(oldEl, diff);
-          needListeners.forEach((index) => {
-            const listener = listenerList[parseInt(index)];
-            if (!listener) {
-              throw new Error("Listener not found!");
-            }
-            const elToApplyListenerTo = oldEl.querySelector(
-              "[data-listener-index='" + index + "']",
-            );
-            if (elToApplyListenerTo) {
-              console.log("🐷🐷🐷🐷🐷🐷🐷🐷🐷🐷");
-              elToApplyListenerTo.addEventListener(listener[1], listener[0]);
-            }
-          });
-        });
-      };
-      return funcWrapper;
-    };
-    const wrapper = getFuncWrapper();
-    functionSubscribersMap.set(wrapper, []);
-    return wrapper;
-  };
+
+  setRef(allElements);
+  const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
   const nesting = [root];
-  function $(
-    tag: string,
-    optionsOrCb: any,
-    cb?: Function,
-    shouldAppend = true,
-  ) {
+  function $(tag: string, optionsOrCb: any, cb?: Function, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
     if (tag === "text") {
       const node = document.createTextNode(optionsOrCb as string);
@@ -169,9 +112,7 @@ export function templater2(root: Element) {
           .join(" ");
         element.setAttribute(key, style);
       } else if (key === "subscribe") {
-        console.log("not inside subscribe!");
         if (shouldAppend) {
-          console.log(" inside subscribe!");
           const funcs = optionsOrCb[key] as Function[];
           funcs.forEach((f) => {
             const regenerator = () => $(tag, optionsOrCb, cb, false);
@@ -193,32 +134,34 @@ export function templater2(root: Element) {
           isArray &&
           eventDefinition.length < 3 &&
           typeof eventDefinition[0] === "function" &&
-          (Array.isArray(eventDefinition[1]) ||
-            eventDefinition[1] === undefined)
+          (Array.isArray(eventDefinition[1]) || eventDefinition[1] === undefined)
         ) {
           func = eventDefinition[0];
           if (eventDefinition[1]) args = eventDefinition[1];
         } else {
-          throw new Error(
-            `Event listener given a bad value. Recieved ${key}, ${eventDefinition}`,
-          );
+          throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
         }
-        console.log(listenerList.length);
-        const funcIndex = listenerList.findIndex((f) => f[0] === func);
+        const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
         element.dataset.listenerIndex = (
           funcIndex === -1 ? listenerList.length : funcIndex
         ).toString();
-        elementToEventListeners.set(element, new Map([[key, func]]));
         if (funcIndex === -1) {
-          listenerList.push([(e: Event) => func(e, args), key]);
+          listenerList.push({
+            eventType: key,
+            callback: (e: Event) => func(e, args),
+            originalCallback: func,
+          });
         }
         element.addEventListener(key, (e) => func(e, args));
+      } else if (key === "ref") {
+        if (typeof optionsOrCb[key] !== "function") {
+          throw new Error("Ref must be a function");
+        }
+        optionsOrCb[key](element);
       } else {
         element.setAttribute(
           key,
-          typeof optionsOrCb[key] === "function"
-            ? optionsOrCb[key]()
-            : optionsOrCb[key],
+          typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key],
         );
       }
     }
@@ -236,3 +179,70 @@ export function templater2(root: Element) {
   }
   return allElements;
 }
+
+const setRef = (templater: Templater) => {
+  templater._refs = [];
+  const funcElementMap = new Map<Function, Element>();
+  templater.ref = () => {
+    const func = (el?: Element) => {
+      if (el) {
+        funcElementMap.set(func, el);
+        templater._refs.push(el);
+        return el;
+      } else {
+        return funcElementMap.get(func) || null;
+      }
+    };
+    return func;
+  };
+};
+
+const setStateUpdater = (templater: Templater) => {
+  const functionSubscribersMap = new Map<Function, [Element, () => HTMLElement | Comment][]>();
+  const listenerList: ({
+    eventType: string;
+    callback: (e: Event) => any;
+    originalCallback: Function;
+  } | null)[] = [];
+  templater.stateUpdater = (callback: Function) => {
+    const getFuncWrapper = () => {
+      const funcWrapper = (e: Event, args: any[] = []) => {
+        const needListeners: string[] = [];
+        const domDiffer = new DiffDOM({
+          postVirtualDiffApply: function (d) {
+            const listenerIndex = d.diff?.element?.attributes?.["data-listener-index"];
+            if (d.diff?.action === "addElement" && listenerIndex) {
+              needListeners.push(listenerIndex);
+            } else if (d.diff?.action === "removeElement" && listenerIndex) {
+              listenerList[parseInt(d.diff.element.attributes["data-listener-index"])] = null;
+            }
+          },
+        });
+        callback(e, ...args);
+        const subscribers = functionSubscribersMap.get(funcWrapper);
+        subscribers?.forEach((subscriber) => {
+          const newEl = subscriber[1]();
+          const oldEl = subscriber[0];
+          const diff = domDiffer.diff(oldEl, newEl);
+          domDiffer.apply(oldEl, diff);
+          needListeners.forEach((index) => {
+            const listener = listenerList[parseInt(index)];
+            if (listener) {
+              const elToApplyListenerTo = oldEl.querySelector(
+                "[data-listener-index='" + index + "']",
+              );
+              if (elToApplyListenerTo) {
+                elToApplyListenerTo.addEventListener(listener.eventType, listener.callback);
+              }
+            }
+          });
+        });
+      };
+      return funcWrapper;
+    };
+    const wrapper = getFuncWrapper();
+    functionSubscribersMap.set(wrapper, []);
+    return wrapper;
+  };
+  return { functionSubscribersMap, listenerList };
+};

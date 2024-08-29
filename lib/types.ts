@@ -1,9 +1,11 @@
 export interface Templater extends AllElements {
+  ref: () => () => Element | null;
   stateUpdater: (callback: Function, args?: any[]) => Function;
 }
 type ElementInput = (optionsOrCb?: any, cb?: Function) => Templater;
 
 export interface AllElements {
+  _refs: Element[];
   a: ElementInput;
   abbr: ElementInput;
   acronym: ElementInput;

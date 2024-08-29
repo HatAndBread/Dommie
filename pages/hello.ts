@@ -60,6 +60,7 @@ const t: AppInput = (h) => {
     "black",
   ];
 
+  const ref = h.ref();
   let word = "🥓";
   const updateWord = h.stateUpdater(() => {
     const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
@@ -99,7 +100,7 @@ const t: AppInput = (h) => {
     });
     h.div({ subscribe: [toggleBool] }, () => {
       if (!someBool) {
-        h.button({ click: toggleBool }, () => {
+        h.button({ click: toggleBool, ref: ref }, () => {
           h.text("someBool is false");
         });
       }
@@ -132,8 +133,7 @@ const t: AppInput = (h) => {
       {
         subscribe: [addToStuff],
         style: {
-          backgroundColor: () =>
-            colors[Math.floor(Math.random() * colors.length)],
+          backgroundColor: () => colors[Math.floor(Math.random() * colors.length)],
         },
       },
       () => {
@@ -141,8 +141,7 @@ const t: AppInput = (h) => {
           h.li(
             {
               style: {
-                backgroundColor:
-                  colors[Math.floor(Math.random() * colors.length)],
+                backgroundColor: colors[Math.floor(Math.random() * colors.length)],
               },
             },
             () => {
