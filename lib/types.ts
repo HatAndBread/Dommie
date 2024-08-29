@@ -1,4 +1,8 @@
-type ElementInput = (optionsOrCb?: any, cb?: Function) => AllElements;
+export interface Templater extends AllElements {
+  stateUpdater: (callback: Function, args?: any[]) => Function;
+}
+type ElementInput = (optionsOrCb?: any, cb?: Function) => Templater;
+
 export interface AllElements {
   a: ElementInput;
   abbr: ElementInput;

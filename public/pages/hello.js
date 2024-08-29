@@ -1854,6 +1854,48 @@ function templater2(root) {
     allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
   }
   const functionSubscribersMap = new Map;
+  const elementToEventListeners = new Map;
+  const listenerList = [];
+  allElements.stateUpdater = (callback) => {
+    const getFuncWrapper = () => {
+      const funcWrapper = (e, args = []) => {
+        const needListeners = [];
+        const domDiffer = new DiffDOM({
+          postVirtualDiffApply: function(d) {
+            console.log("postVirtualDiffApply");
+            console.log(d);
+            if (d.diff?.action === "addElement" && d.diff?.element?.attributes?.["data-listener-index"]) {
+              needListeners.push(d.diff.element.attributes["data-listener-index"]);
+            }
+          }
+        });
+        callback(e, ...args);
+        const subscribers = functionSubscribersMap.get(funcWrapper);
+        subscribers?.forEach((subscriber) => {
+          const newEl = subscriber[1]();
+          const oldEl = subscriber[0];
+          const diff = domDiffer.diff(oldEl, newEl);
+          console.log("HERE is needListeners");
+          domDiffer.apply(oldEl, diff);
+          needListeners.forEach((index) => {
+            const listener = listenerList[parseInt(index)];
+            if (!listener) {
+              throw new Error("Listener not found!");
+            }
+            const elToApplyListenerTo = oldEl.querySelector("[data-listener-index='" + index + "']");
+            if (elToApplyListenerTo) {
+              console.log("\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37\uD83D\uDC37");
+              elToApplyListenerTo.addEventListener(listener[1], listener[0]);
+            }
+          });
+        });
+      };
+      return funcWrapper;
+    };
+    const wrapper = getFuncWrapper();
+    functionSubscribersMap.set(wrapper, []);
+    return wrapper;
+  };
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -1883,7 +1925,9 @@ function templater2(root) {
         }).join(" ");
         element.setAttribute(key, style);
       } else if (key === "subscribe") {
+        console.log("not inside subscribe!");
         if (shouldAppend) {
+          console.log(" inside subscribe!");
           const funcs = optionsOrCb[key];
           funcs.forEach((f) => {
             const regenerator = () => $(tag, optionsOrCb, cb, false);
@@ -1895,34 +1939,27 @@ function templater2(root) {
           });
         }
       } else if (allEventListeners.includes(key)) {
+        const eventDefinition = optionsOrCb[key];
+        const isArray = Array.isArray(eventDefinition);
         let func;
         let args = [];
-        const eventDefinition = optionsOrCb[key];
-        if (typeof eventDefinition === "function") {
+        if (!isArray) {
           func = eventDefinition;
-        } else if (Array.isArray(eventDefinition) && typeof eventDefinition[0] === "function" && (typeof eventDefinition[1] === "undefined" || Array.isArray(eventDefinition[1]))) {
+        } else if (isArray && eventDefinition.length < 3 && typeof eventDefinition[0] === "function" && (Array.isArray(eventDefinition[1]) || eventDefinition[1] === undefined)) {
           func = eventDefinition[0];
-          if (eventDefinition[1]) {
+          if (eventDefinition[1])
             args = eventDefinition[1];
-          }
         } else {
-          throw new Error(`Listeners must be a function or an array of function and arguments. Recieved ${key}, ${eventDefinition}`);
+          throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
         }
-        const funcWrapper = (e) => {
-          if (!func) {
-            throw new Error("What??? \uD83E\uDD14");
-          } else {
-            func(e, ...args);
-          }
-          const subscribers = functionSubscribersMap.get(func);
-          subscribers?.forEach((subscriber) => {
-            const newEl = subscriber[1]();
-            const oldEl = subscriber[0];
-            const diff = domDiffer.diff(oldEl, newEl);
-            domDiffer.apply(oldEl, diff);
-          });
-        };
-        element.addEventListener(key, funcWrapper);
+        console.log(listenerList.length);
+        const funcIndex = listenerList.findIndex((f) => f[0] === func);
+        element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
+        elementToEventListeners.set(element, new Map([[key, func]]));
+        if (funcIndex === -1) {
+          listenerList.push([(e) => func(e, args), key]);
+        }
+        element.addEventListener(key, (e) => func(e, args));
       } else {
         element.setAttribute(key, typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key]);
       }
@@ -1943,11 +1980,9 @@ function templater2(root) {
   }
   return allElements;
 }
-var domDiffer = new DiffDOM;
 
 // pages/hello.ts
 var t = (h) => {
-  let value = 0;
   let width = 100;
   const stuff = [];
   const colors = [
@@ -2003,12 +2038,25 @@ var t = (h) => {
     "gray",
     "black"
   ];
-  const updateWidth = () => width += 1;
-  const updateValue = (_, v) => value += v;
-  const addToStuff = (e) => {
+  let word = "\uD83E\uDD53";
+  const updateWord = h.stateUpdater(() => {
+    const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
+    word = words[Math.floor(Math.random() * words.length)];
+    updateWidth();
+  });
+  const updateWidth = h.stateUpdater(() => width += 1);
+  let value = 0;
+  const updateValue = h.stateUpdater((_, n) => {
+    value += n;
+  });
+  const addToStuff = h.stateUpdater((e) => {
     console.log(e);
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
-  };
+  });
+  let someBool = true;
+  const toggleBool = h.stateUpdater(() => {
+    someBool = !someBool;
+  });
   const thing = (text) => h.div(() => {
     h.text(`I am ${text}`);
   });
@@ -2016,9 +2064,29 @@ var t = (h) => {
     h.a({ href: "https://www.google.com" }, () => {
       h.text("I am a link");
     });
+    h.div({ subscribe: [updateWord] }, () => {
+      h.text(word);
+    });
+    h.button({ click: updateWord }, () => {
+      h.text("Change word");
+    });
+    h.div({ subscribe: [toggleBool] }, () => {
+      if (!someBool) {
+        h.button({ click: toggleBool }, () => {
+          h.text("someBool is false");
+        });
+      }
+    });
     h.text("I am some text");
     h.br();
     h.text("I am some more text");
+    h.div({ subscribe: [toggleBool] }, () => {
+      if (someBool) {
+        h.button({ click: toggleBool }, () => {
+          h.text("someBool is true");
+        });
+      }
+    });
     h.div({ subscribe: [updateValue] }, () => {
       h.text(value);
     });
@@ -2057,7 +2125,7 @@ var t = (h) => {
         height: "100px"
       },
       class: () => `${width}`,
-      mouseover: updateWidth
+      mousemove: updateWidth
     }, () => {
       h.text("mouse over me");
     });

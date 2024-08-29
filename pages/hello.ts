@@ -1,9 +1,9 @@
 import type { Template } from "../index.ts";
 import { templater2 } from "../lib/templater.ts";
+import type { Templater } from "../lib/types.ts";
 import type { AllElements } from "../lib/types.ts";
 
 const t: AppInput = (h) => {
-  let value = 0;
   let width = 100;
   const stuff: number[] = [];
   const colors = [
@@ -60,15 +60,28 @@ const t: AppInput = (h) => {
     "black",
   ];
 
-  // const useHello = createState("hello");
+  let word = "🥓";
+  const updateWord = h.stateUpdater(() => {
+    const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
+    word = words[Math.floor(Math.random() * words.length)];
+    updateWidth();
+  });
+  const updateWidth = h.stateUpdater(() => (width += 1));
+  let value = 0;
+  const updateValue = h.stateUpdater((_: Event, n: number) => {
+    value += n;
+  });
 
-  const updateWidth = () => (width += 1);
-  const updateValue = (_: Event, v: number) => (value += v);
-
-  const addToStuff = (e: Event) => {
+  const addToStuff = h.stateUpdater((e: Event) => {
     console.log(e);
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
-  };
+  });
+
+  let someBool = true;
+  const toggleBool = h.stateUpdater(() => {
+    someBool = !someBool;
+  });
+
   const thing = (text: string) =>
     h.div(() => {
       h.text(`I am ${text}`);
@@ -78,9 +91,29 @@ const t: AppInput = (h) => {
     h.a({ href: "https://www.google.com" }, () => {
       h.text("I am a link");
     });
+    h.div({ subscribe: [updateWord] }, () => {
+      h.text(word);
+    });
+    h.button({ click: updateWord }, () => {
+      h.text("Change word");
+    });
+    h.div({ subscribe: [toggleBool] }, () => {
+      if (!someBool) {
+        h.button({ click: toggleBool }, () => {
+          h.text("someBool is false");
+        });
+      }
+    });
     h.text("I am some text");
     h.br();
     h.text("I am some more text");
+    h.div({ subscribe: [toggleBool] }, () => {
+      if (someBool) {
+        h.button({ click: toggleBool }, () => {
+          h.text("someBool is true");
+        });
+      }
+    });
     h.div({ subscribe: [updateValue] }, () => {
       h.text(value);
     });
@@ -94,13 +127,6 @@ const t: AppInput = (h) => {
     h.button({ click: addToStuff, subscribe: [addToStuff] }, () => {
       h.text("Add to stuff" + stuff.length);
     });
-    // h.button({ click: useHello((s) => (s.value = "Stupid")) }, () => {
-    //   h.text("Use hello");
-    // });
-    // h.div({ subscribe: [useHello], class: useHello((s) => s.value) }, () => {
-    //   console.log(useHello);
-    //   h.text("This is useHello");
-    // });
     thing("Aho");
     h.ul(
       {
@@ -135,7 +161,7 @@ const t: AppInput = (h) => {
           height: "100px",
         },
         class: () => `${width}`,
-        mouseover: updateWidth,
+        mousemove: updateWidth,
       },
       () => {
         h.text("mouse over me");
@@ -155,7 +181,7 @@ const camelize = (str: string) => {
   return pascaled.charAt(0).toLowerCase() + pascaled.slice(1);
 };
 
-export type AppInput = (h: Template) => AllElements;
+export type AppInput = (h: Templater) => Templater;
 const app = (i: AppInput, id: string) => {
   const el = document.getElementById(id);
   if (!el) {
