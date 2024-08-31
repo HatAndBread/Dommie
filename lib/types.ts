@@ -2,7 +2,7 @@ export interface Templater extends AllElements {
   ref: () => () => Element | null;
   stateUpdater: (callback: Function, args?: any[]) => Function;
 }
-type ElementInput = (optionsOrCb?: any, cb?: Function) => Templater;
+type ElementInput = (...args: any) => Templater;
 
 export interface AllElements {
   _refs: Element[];
@@ -126,10 +126,4 @@ export interface AllElements {
   video: ElementInput;
   wbr: ElementInput;
   xmp: ElementInput;
-  getUpdater: () => UpdaterReturn;
 }
-
-export type UpdaterReturn = {
-  subscribe: Function[];
-  updater: (cb: Function) => Function;
-};

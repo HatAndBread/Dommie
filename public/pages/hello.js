@@ -1,3 +1,24 @@
+// pages/child.ts
+var child = (h) => {
+  let inputValue = "I am a text input";
+  const updateInputValue = h.stateUpdater((e) => {
+    inputValue = e.target.value;
+  });
+  return h.div(() => {
+    h.div(() => {
+      h.text("I am the CHILD \uD83D\uDC76");
+      h.h1({ subscribe: updateInputValue }, () => {
+        h.text(inputValue);
+      });
+      h.input({
+        type: "text",
+        value: () => inputValue,
+        subscribe: updateInputValue,
+        input: updateInputValue
+      });
+    });
+  });
+};
 // lib/all-event-listeners.ts
 var allEventListeners = [
   "abort",
@@ -1851,22 +1872,29 @@ var TraceLogger = function() {
 function templateBuilder(root) {
   const allElements = {};
   for (const elementName of allHtmlElements) {
-    allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
+    allElements[elementName] = (...args) => {
+      if (args.length > 3) {
+        throw new Error("Too many arguments");
+      }
+      const optionsOrCb = args.find((a) => typeof a === "object") || {};
+      const cb = args.find((a) => typeof a === "function") || undefined;
+      const text = args.find((a) => ![optionsOrCb, cb].includes(a)) || undefined;
+      $(elementName, optionsOrCb, cb, text);
+    };
   }
   setRef(allElements);
-  setGetUpdater(allElements);
   const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
   const nesting = [root];
-  function $(tag, optionsOrCb, cb, shouldAppend = true) {
+  function $(tag, optionsOrCb, cb, text, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
-    if (tag === "text") {
-      const node = document.createTextNode(optionsOrCb);
+    if (tag === "text" && text) {
+      const textNode = document.createTextNode(text);
       if (shouldAppend)
-        parent.appendChild(node);
-      return node;
+        parent.appendChild(textNode);
+      return textNode;
     }
     if (tag === "comment") {
-      const comment = document.createComment("My comments");
+      const comment = document.createComment(text || "");
       if (shouldAppend)
         parent.appendChild(comment);
       return comment;
@@ -1878,6 +1906,10 @@ function templateBuilder(root) {
       optionsOrCb = {};
     }
     const element = document.createElement(tag);
+    if (text) {
+      const textNode = document.createTextNode(text);
+      element.appendChild(textNode);
+    }
     for (let key in optionsOrCb) {
       const context = {
         element,
@@ -1890,6 +1922,7 @@ function templateBuilder(root) {
         shouldAppend,
         functionSubscribersMap,
         listenerList,
+        text,
         $
       };
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
@@ -1929,10 +1962,22 @@ var handleStyle = (context) => {
   context.element.setAttribute(context.key, style);
 };
 var handleSubscription = (context) => {
-  if (context.shouldAppend) {
-    const funcs = context.value;
+  const { shouldAppend, value } = context;
+  if (shouldAppend) {
+    const funcs = [];
+    if (typeof value === "function") {
+      funcs.push(value);
+    } else if (Array.isArray(value)) {
+      value.forEach((v) => {
+        if (typeof v === "function") {
+          funcs.push(v);
+        } else {
+          throw new Error("Subscription array must contain only functions");
+        }
+      });
+    }
     funcs.forEach((f) => {
-      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
+      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, context.text, false);
       if (context.functionSubscribersMap.get(f)) {
         context.functionSubscribersMap.get(f)?.push([context.element, regenerator]);
       } else {
@@ -2034,20 +2079,9 @@ var setStateUpdater = (templater) => {
   };
   return { functionSubscribersMap, listenerList };
 };
-var setGetUpdater = (t) => {
-  t.getUpdater = () => {
-    const subscribe = [];
-    const updater = (cb) => {
-      const updater2 = t.stateUpdater(cb);
-      subscribe.push(updater2);
-      return updater2;
-    };
-    return { subscribe, updater };
-  };
-};
 
 // lib/app.ts
-var app = (i, el) => {
+var app_default = (i, el) => {
   const element = typeof el === "string" ? document.querySelector(el) : el;
   if (!element && typeof el === "string") {
     console.error("No element found with css selector: " + el);
@@ -2061,7 +2095,6 @@ var app = (i, el) => {
 
 // pages/hello.ts
 var t = (h) => {
-  const { subscribe, updater } = h.getUpdater();
   let width = 100;
   const stuff = [];
   const colors = [
@@ -2119,22 +2152,22 @@ var t = (h) => {
   ];
   const ref = h.ref();
   let word = "\uD83E\uDD53";
-  const updateWord = updater(() => {
+  const updateWord = h.stateUpdater(() => {
     const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
     word = words[Math.floor(Math.random() * words.length)];
     updateWidth();
   });
-  const updateWidth = updater(() => width += 1);
+  const updateWidth = h.stateUpdater(() => width += 1);
   let value = 0;
-  const updateValue = updater((_, n) => {
+  const updateValue = h.stateUpdater((_, n) => {
     value += n;
   });
   let catData = "";
   let fetchingCatData = false;
-  const toggleFetchingCatData = updater(() => {
+  const toggleFetchingCatData = h.stateUpdater(() => {
     fetchingCatData = !fetchingCatData;
   });
-  const fetchCatData = updater(async () => {
+  const fetchCatData = h.stateUpdater(async () => {
     toggleFetchingCatData();
     const res = await fetch("https://meowfacts.herokuapp.com/");
     const data = await res.json();
@@ -2142,37 +2175,43 @@ var t = (h) => {
     catData = data.data[0];
     toggleFetchingCatData();
   });
-  const addToStuff = updater((e) => {
+  const addToStuff = h.stateUpdater((e) => {
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
   });
   let someBool = true;
-  const toggleBool = updater(() => {
+  const toggleBool = h.stateUpdater(() => {
     someBool = !someBool;
   });
   const thing = (text) => h.div(() => {
     h.text(`I am ${text}`);
   });
   return h.div({
-    subscribe,
-    style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
-    ["data-component-root"]: 1
+    style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] }
   }, () => {
     h.a({ href: "https://www.google.com" }, () => {
       h.text("I am a link");
     });
     h.div(() => {
-      h.text(word);
-    });
-    h.button({ click: updateWord }, () => {
-      h.text("Change word");
+      h.text("This is one instance of a child");
+      child(h);
     });
     h.div(() => {
+      h.text("This is another instance of a child");
+      child(h);
+    });
+    h.div("You can just give me a string now");
+    h.div({ subscribe: fetchCatData }, "Me too");
+    h.div({ subscribe: updateWord }, () => {
+      h.text(word);
+    });
+    h.button("Change word", { click: updateWord });
+    h.div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
       h.text(fetchingCatData ? "Fetching cat data..." : catData);
     });
     h.button({ click: fetchCatData }, () => {
       h.text("Fetch cat data");
     });
-    h.div(() => {
+    h.div({ subscribe: [toggleBool] }, () => {
       if (!someBool) {
         h.button({ click: toggleBool, ref }, () => {
           h.text("someBool is false");
@@ -2182,14 +2221,14 @@ var t = (h) => {
     h.text("I am some text");
     h.br();
     h.text("I am some more text");
-    h.div(() => {
+    h.div({ subscribe: toggleBool }, () => {
       if (someBool) {
         h.button({ click: toggleBool }, () => {
           h.text("someBool is true");
         });
       }
     });
-    h.div(() => {
+    h.div({ subscribe: updateValue }, () => {
       h.text(value);
     });
     h.button({ click: [updateValue, [1]] }, () => {
@@ -2199,14 +2238,15 @@ var t = (h) => {
       h.text("Decrement");
     });
     thing("baka");
-    h.button({ click: addToStuff }, () => {
+    h.button({ click: addToStuff, subscribe: addToStuff }, () => {
       h.text("Add to stuff" + stuff.length);
     });
     thing("Aho");
     h.ul({
       style: {
         backgroundColor: () => colors[Math.floor(Math.random() * colors.length)]
-      }
+      },
+      subscribe: addToStuff
     }, () => {
       stuff.forEach((thing2) => {
         h.li({
@@ -2225,6 +2265,7 @@ var t = (h) => {
         height: "100px"
       },
       class: () => `${width}`,
+      subscribe: updateWidth,
       mousemove: updateWidth
     }, () => {
       h.text("mouse over me");
@@ -2232,4 +2273,4 @@ var t = (h) => {
     h.comment("This is a comment!");
   });
 };
-app(t, "#app");
+app_default(t, "#app");

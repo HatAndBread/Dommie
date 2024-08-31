@@ -2,7 +2,7 @@ import type { Templater } from "./types";
 import { templateBuilder } from "./template-builder";
 
 export type Component = (h: Templater) => Templater;
-export const app = (i: Component, el: string | HTMLElement) => {
+export default (i: Component, el: string | HTMLElement) => {
   const element = typeof el === "string" ? document.querySelector(el) : el;
   if (!element && typeof el === "string") {
     console.error("No element found with css selector: " + el);

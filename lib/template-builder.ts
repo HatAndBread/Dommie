@@ -11,43 +11,57 @@ type Context = {
   key: string;
   value: any;
   optionsOrCb: any;
-  cb: Function | undefined;
+  cb: Function | String | undefined;
   shouldAppend: boolean;
   functionSubscribersMap: FuncSubscriberMap;
   listenerList: ListenerList;
+  text: string | undefined;
   $: (
     tag: string,
     optionsOrCb: any,
-    cb?: Function,
+    cb?: Function | String,
+    text?: string,
     shouldAppend?: boolean,
   ) => Comment | HTMLElement;
 };
 
-// this function needs a new name. What should it be?
 export function templateBuilder(root: Element) {
   const allElements = <Templater>{};
   for (const elementName of allHtmlElements) {
     // @ts-ignore
-    allElements[elementName] = (optionsOrCb: any = {}, cb?: Function) =>
-      $(elementName, optionsOrCb, cb);
+    allElements[elementName] = (...args) => {
+      if (args.length > 3) {
+        throw new Error("Too many arguments");
+      }
+      const optionsOrCb = args.find((a) => typeof a === "object") || {};
+      const cb = args.find((a) => typeof a === "function") || undefined;
+      const text = args.find((a) => ![optionsOrCb, cb].includes(a)) || undefined;
+      $(elementName, optionsOrCb, cb, text);
+    };
   }
 
   setRef(allElements);
-  setGetUpdater(allElements);
   const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
   const nesting = [root];
-  function $(tag: string, optionsOrCb: any, cb?: Function, shouldAppend = true) {
+  function $(
+    tag: string,
+    optionsOrCb: { [key: string]: any },
+    cb?: Function,
+    text?: string,
+    shouldAppend = true,
+  ) {
     const parent = nesting[nesting.length - 1];
-    if (tag === "text") {
-      const node = document.createTextNode(optionsOrCb as string);
-      if (shouldAppend) parent.appendChild(node);
-      return node;
+    if (tag === "text" && text) {
+      const textNode = document.createTextNode(text);
+      if (shouldAppend) parent.appendChild(textNode);
+      return textNode;
     }
     if (tag === "comment") {
-      const comment = document.createComment("My comments");
+      const comment = document.createComment(text || "");
       if (shouldAppend) parent.appendChild(comment);
       return comment;
     }
+
     if (tag === "custom") {
       // todo: add custom element
       //return allElements;
@@ -57,6 +71,10 @@ export function templateBuilder(root: Element) {
       optionsOrCb = {};
     }
     const element = document.createElement(tag);
+    if (text) {
+      const textNode = document.createTextNode(text);
+      element.appendChild(textNode);
+    }
     for (let key in optionsOrCb) {
       const context: Context = {
         element,
@@ -69,6 +87,7 @@ export function templateBuilder(root: Element) {
         shouldAppend,
         functionSubscribersMap,
         listenerList,
+        text,
         $,
       };
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
@@ -115,10 +134,23 @@ const handleStyle = (context: Context) => {
 };
 
 const handleSubscription = (context: Context) => {
-  if (context.shouldAppend) {
-    const funcs = context.value as Function[];
+  const { shouldAppend, value } = context;
+  if (shouldAppend) {
+    const funcs: Function[] = [];
+    if (typeof value === "function") {
+      funcs.push(value);
+    } else if (Array.isArray(value)) {
+      value.forEach((v) => {
+        if (typeof v === "function") {
+          funcs.push(v);
+        } else {
+          throw new Error("Subscription array must contain only functions");
+        }
+      });
+    }
     funcs.forEach((f) => {
-      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
+      const regenerator = () =>
+        context.$(context.tag, context.optionsOrCb, context.cb, context.text, false);
       if (context.functionSubscribersMap.get(f)) {
         context.functionSubscribersMap.get(f)?.push([context.element, regenerator]);
       } else {
@@ -244,18 +276,6 @@ const setStateUpdater = (templater: Templater) => {
     return wrapper;
   };
   return { functionSubscribersMap, listenerList };
-};
-
-const setGetUpdater = (t: Templater) => {
-  t.getUpdater = () => {
-    const subscribe: Function[] = [];
-    const updater = (cb: Function) => {
-      const updater = t.stateUpdater(cb);
-      subscribe.push(updater);
-      return updater;
-    };
-    return { subscribe, updater };
-  };
 };
 
 /*
