@@ -148,11 +148,13 @@ export function templater2(root: Element) {
         if (funcIndex === -1) {
           listenerList.push({
             eventType: key,
-            callback: (e: Event) => func(e, args),
+            callback: async (e: Event) => await func(e, args),
             originalCallback: func,
           });
         }
-        element.addEventListener(key, (e) => func(e, args));
+        if (shouldAppend) {
+          element.addEventListener(key, async (e) => await func(e, args));
+        }
       } else if (key === "ref") {
         if (typeof optionsOrCb[key] !== "function") {
           throw new Error("Ref must be a function");
@@ -169,11 +171,15 @@ export function templater2(root: Element) {
       nesting.push(element);
       cb();
       nesting.pop();
-      if (shouldAppend) parent.appendChild(element);
+      if (shouldAppend) {
+        parent.appendChild(element);
+      }
     } else if (cb) {
       throw new Error("Callback must be a function!");
     } else {
-      if (shouldAppend) parent.appendChild(element);
+      if (shouldAppend) {
+        parent.appendChild(element);
+      }
     }
     return element;
   }
@@ -206,7 +212,7 @@ const setStateUpdater = (templater: Templater) => {
   } | null)[] = [];
   templater.stateUpdater = (callback: Function) => {
     const getFuncWrapper = () => {
-      const funcWrapper = (e: Event, args: any[] = []) => {
+      const funcWrapper = async (e: Event, args: any[] = []) => {
         const needListeners: string[] = [];
         const domDiffer = new DiffDOM({
           postVirtualDiffApply: function (d) {
@@ -214,17 +220,19 @@ const setStateUpdater = (templater: Templater) => {
             if (d.diff?.action === "addElement" && listenerIndex) {
               needListeners.push(listenerIndex);
             } else if (d.diff?.action === "removeElement" && listenerIndex) {
-              listenerList[parseInt(d.diff.element.attributes["data-listener-index"])] = null;
             }
           },
         });
-        callback(e, ...args);
+        console.log("calling...");
+        await callback(e, ...args);
+        console.log("called...");
         const subscribers = functionSubscribersMap.get(funcWrapper);
         subscribers?.forEach((subscriber) => {
           const newEl = subscriber[1]();
           const oldEl = subscriber[0];
-          const diff = domDiffer.diff(oldEl, newEl);
+          const diff = domDiffer.diff(oldEl, newEl as HTMLElement);
           domDiffer.apply(oldEl, diff);
+          newEl.remove();
           needListeners.forEach((index) => {
             const listener = listenerList[parseInt(index)];
             if (listener) {

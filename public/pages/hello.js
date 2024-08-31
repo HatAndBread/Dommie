@@ -1914,11 +1914,13 @@ function templater2(root) {
         if (funcIndex === -1) {
           listenerList.push({
             eventType: key,
-            callback: (e) => func(e, args),
+            callback: async (e) => await func(e, args),
             originalCallback: func
           });
         }
-        element.addEventListener(key, (e) => func(e, args));
+        if (shouldAppend) {
+          element.addEventListener(key, async (e) => await func(e, args));
+        }
       } else if (key === "ref") {
         if (typeof optionsOrCb[key] !== "function") {
           throw new Error("Ref must be a function");
@@ -1932,13 +1934,15 @@ function templater2(root) {
       nesting.push(element);
       cb();
       nesting.pop();
-      if (shouldAppend)
+      if (shouldAppend) {
         parent.appendChild(element);
+      }
     } else if (cb) {
       throw new Error("Callback must be a function!");
     } else {
-      if (shouldAppend)
+      if (shouldAppend) {
         parent.appendChild(element);
+      }
     }
     return element;
   }
@@ -1965,7 +1969,7 @@ var setStateUpdater = (templater) => {
   const listenerList = [];
   templater.stateUpdater = (callback) => {
     const getFuncWrapper = () => {
-      const funcWrapper = (e, args = []) => {
+      const funcWrapper = async (e, args = []) => {
         const needListeners = [];
         const domDiffer = new DiffDOM({
           postVirtualDiffApply: function(d) {
@@ -1973,17 +1977,19 @@ var setStateUpdater = (templater) => {
             if (d.diff?.action === "addElement" && listenerIndex) {
               needListeners.push(listenerIndex);
             } else if (d.diff?.action === "removeElement" && listenerIndex) {
-              listenerList[parseInt(d.diff.element.attributes["data-listener-index"])] = null;
             }
           }
         });
-        callback(e, ...args);
+        console.log("calling...");
+        await callback(e, ...args);
+        console.log("called...");
         const subscribers = functionSubscribersMap.get(funcWrapper);
         subscribers?.forEach((subscriber) => {
           const newEl = subscriber[1]();
           const oldEl = subscriber[0];
           const diff = domDiffer.diff(oldEl, newEl);
           domDiffer.apply(oldEl, diff);
+          newEl.remove();
           needListeners.forEach((index) => {
             const listener = listenerList[parseInt(index)];
             if (listener) {
@@ -2073,8 +2079,20 @@ var t = (h) => {
   const updateValue = h.stateUpdater((_, n) => {
     value += n;
   });
+  let catData = "";
+  let fetchingCatData = false;
+  const toggleFetchingCatData = h.stateUpdater(() => {
+    fetchingCatData = !fetchingCatData;
+  });
+  const fetchCatData = h.stateUpdater(async () => {
+    toggleFetchingCatData();
+    const res = await fetch("https://meowfacts.herokuapp.com/");
+    const data = await res.json();
+    console.log(data.data[0]);
+    catData = data.data[0];
+    toggleFetchingCatData();
+  });
   const addToStuff = h.stateUpdater((e) => {
-    console.log(e);
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
   });
   let someBool = true;
@@ -2084,17 +2102,35 @@ var t = (h) => {
   const thing = (text) => h.div(() => {
     h.text(`I am ${text}`);
   });
-  return h.div({ style: "background-color: red;" }, () => {
+  return h.div({
+    subscribe: [
+      updateWord,
+      toggleBool,
+      updateValue,
+      addToStuff,
+      updateWidth,
+      fetchCatData,
+      toggleFetchingCatData
+    ],
+    style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
+    ["data-component-root"]: 1
+  }, () => {
     h.a({ href: "https://www.google.com" }, () => {
       h.text("I am a link");
     });
-    h.div({ subscribe: [updateWord] }, () => {
+    h.div(() => {
       h.text(word);
     });
     h.button({ click: updateWord }, () => {
       h.text("Change word");
     });
-    h.div({ subscribe: [toggleBool] }, () => {
+    h.div(() => {
+      h.text(fetchingCatData ? "Fetching cat data..." : catData);
+    });
+    h.button({ click: fetchCatData }, () => {
+      h.text("Fetch cat data");
+    });
+    h.div(() => {
       if (!someBool) {
         h.button({ click: toggleBool, ref }, () => {
           h.text("someBool is false");
@@ -2104,14 +2140,14 @@ var t = (h) => {
     h.text("I am some text");
     h.br();
     h.text("I am some more text");
-    h.div({ subscribe: [toggleBool] }, () => {
+    h.div(() => {
       if (someBool) {
         h.button({ click: toggleBool }, () => {
           h.text("someBool is true");
         });
       }
     });
-    h.div({ subscribe: [updateValue] }, () => {
+    h.div(() => {
       h.text(value);
     });
     h.button({ click: [updateValue, [1]] }, () => {
@@ -2121,12 +2157,11 @@ var t = (h) => {
       h.text("Decrement");
     });
     thing("baka");
-    h.button({ click: addToStuff, subscribe: [addToStuff] }, () => {
+    h.button({ click: addToStuff }, () => {
       h.text("Add to stuff" + stuff.length);
     });
     thing("Aho");
     h.ul({
-      subscribe: [addToStuff],
       style: {
         backgroundColor: () => colors[Math.floor(Math.random() * colors.length)]
       }
@@ -2142,7 +2177,6 @@ var t = (h) => {
       });
     });
     h.div({
-      subscribe: [updateWidth],
       style: {
         backgroundColor: "pink",
         width: () => `${width}px`,
