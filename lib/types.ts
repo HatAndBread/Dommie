@@ -126,4 +126,10 @@ export interface AllElements {
   video: ElementInput;
   wbr: ElementInput;
   xmp: ElementInput;
+  getUpdater: () => UpdaterReturn;
 }
+
+export type UpdaterReturn = {
+  subscribe: Function[];
+  updater: (cb: Function) => Function;
+};

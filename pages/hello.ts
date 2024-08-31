@@ -1,9 +1,8 @@
-import type { Template } from "../index.ts";
-import { templater2 } from "../lib/templater.ts";
-import type { Templater } from "../lib/types.ts";
-import type { AllElements } from "../lib/types.ts";
+import { app, type Component } from "../lib/app.ts";
+import { child } from "../components/child.ts";
 
-const t: AppInput = (h) => {
+const t: Component = (h) => {
+  const { subscribe, updater } = h.getUpdater();
   let width = 100;
   const stuff: number[] = [];
   const colors = [
@@ -62,25 +61,27 @@ const t: AppInput = (h) => {
 
   const ref = h.ref();
   let word = "🥓";
-  const updateWord = h.stateUpdater(() => {
+
+  const updateWord = updater(() => {
     const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
     word = words[Math.floor(Math.random() * words.length)];
     updateWidth();
   });
-  const updateWidth = h.stateUpdater(() => (width += 1));
+
+  const updateWidth = updater(() => (width += 1));
   let value = 0;
-  const updateValue = h.stateUpdater((_: Event, n: number) => {
+  const updateValue = updater((_: Event, n: number) => {
     value += n;
   });
 
   let catData = "";
   let fetchingCatData = false;
 
-  const toggleFetchingCatData = h.stateUpdater(() => {
+  const toggleFetchingCatData = updater(() => {
     fetchingCatData = !fetchingCatData;
   });
 
-  const fetchCatData = h.stateUpdater(async () => {
+  const fetchCatData = updater(async () => {
     toggleFetchingCatData();
     const res = await fetch("https://meowfacts.herokuapp.com/");
     const data = await res.json();
@@ -89,12 +90,12 @@ const t: AppInput = (h) => {
     toggleFetchingCatData();
   });
 
-  const addToStuff = h.stateUpdater((e: Event) => {
+  const addToStuff = updater((e: Event) => {
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
   });
 
   let someBool = true;
-  const toggleBool = h.stateUpdater(() => {
+  const toggleBool = updater(() => {
     someBool = !someBool;
   });
 
@@ -105,15 +106,7 @@ const t: AppInput = (h) => {
 
   return h.div(
     {
-      subscribe: [
-        updateWord,
-        toggleBool,
-        updateValue,
-        addToStuff,
-        updateWidth,
-        fetchCatData,
-        toggleFetchingCatData,
-      ],
+      subscribe,
       style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
       ["data-component-root"]: 1,
     },
@@ -204,17 +197,4 @@ const t: AppInput = (h) => {
   );
 };
 
-// LIB
-export type AppInput = (h: Templater) => Templater;
-const app = (i: AppInput, id: string) => {
-  const el = document.getElementById(id);
-  if (!el) {
-    console.error("No element found with id: " + id);
-    return;
-  }
-  const x = templater2(el);
-  i(x);
-  console.log(x);
-};
-
-app(t, "app");
+app(t, "#app");

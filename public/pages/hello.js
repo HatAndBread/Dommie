@@ -1847,13 +1847,14 @@ var TraceLogger = function() {
   return TraceLogger2;
 }();
 
-// lib/templater.ts
-function templater2(root) {
+// lib/template-builder.ts
+function templateBuilder(root) {
   const allElements = {};
   for (const elementName of allHtmlElements) {
     allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
   }
   setRef(allElements);
+  setGetUpdater(allElements);
   const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
@@ -1878,54 +1879,27 @@ function templater2(root) {
     }
     const element = document.createElement(tag);
     for (let key in optionsOrCb) {
+      const context = {
+        element,
+        parent,
+        tag,
+        key,
+        value: optionsOrCb[key],
+        optionsOrCb,
+        cb,
+        shouldAppend,
+        functionSubscribersMap,
+        listenerList,
+        $
+      };
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
-        const style = Object.entries(optionsOrCb[key]).map(([styleKey, styleValue]) => {
-          return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
-        }).join(" ");
-        element.setAttribute(key, style);
+        handleStyle(context);
       } else if (key === "subscribe") {
-        if (shouldAppend) {
-          const funcs = optionsOrCb[key];
-          funcs.forEach((f) => {
-            const regenerator = () => $(tag, optionsOrCb, cb, false);
-            if (functionSubscribersMap.get(f)) {
-              functionSubscribersMap.get(f)?.push([element, regenerator]);
-            } else {
-              functionSubscribersMap.set(f, [[element, regenerator]]);
-            }
-          });
-        }
+        handleSubscription(context);
       } else if (allEventListeners.includes(key)) {
-        const eventDefinition = optionsOrCb[key];
-        const isArray = Array.isArray(eventDefinition);
-        let func;
-        let args = [];
-        if (!isArray) {
-          func = eventDefinition;
-        } else if (isArray && eventDefinition.length < 3 && typeof eventDefinition[0] === "function" && (Array.isArray(eventDefinition[1]) || eventDefinition[1] === undefined)) {
-          func = eventDefinition[0];
-          if (eventDefinition[1])
-            args = eventDefinition[1];
-        } else {
-          throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
-        }
-        const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
-        element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
-        if (funcIndex === -1) {
-          listenerList.push({
-            eventType: key,
-            callback: async (e) => await func(e, args),
-            originalCallback: func
-          });
-        }
-        if (shouldAppend) {
-          element.addEventListener(key, async (e) => await func(e, args));
-        }
+        handleEventListeners(context);
       } else if (key === "ref") {
-        if (typeof optionsOrCb[key] !== "function") {
-          throw new Error("Ref must be a function");
-        }
-        optionsOrCb[key](element);
+        handleRefs(context);
       } else {
         element.setAttribute(key, typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key]);
       }
@@ -1948,6 +1922,59 @@ function templater2(root) {
   }
   return allElements;
 }
+var handleStyle = (context) => {
+  const style = Object.entries(context.value).map(([styleKey, styleValue]) => {
+    return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
+  }).join(" ");
+  context.element.setAttribute(context.key, style);
+};
+var handleSubscription = (context) => {
+  if (context.shouldAppend) {
+    const funcs = context.value;
+    funcs.forEach((f) => {
+      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
+      if (context.functionSubscribersMap.get(f)) {
+        context.functionSubscribersMap.get(f)?.push([context.element, regenerator]);
+      } else {
+        context.functionSubscribersMap.set(f, [[context.element, regenerator]]);
+      }
+    });
+  }
+};
+var handleEventListeners = (context) => {
+  const { listenerList, element, value, shouldAppend, key } = context;
+  const eventDefinition = value;
+  const isArray = Array.isArray(eventDefinition);
+  let func;
+  let args = [];
+  if (!isArray) {
+    func = eventDefinition;
+  } else if (isArray && eventDefinition.length < 3 && typeof eventDefinition[0] === "function" && (Array.isArray(eventDefinition[1]) || eventDefinition[1] === undefined)) {
+    func = eventDefinition[0];
+    if (eventDefinition[1])
+      args = eventDefinition[1];
+  } else {
+    throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
+  }
+  const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
+  element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
+  if (funcIndex === -1) {
+    listenerList.push({
+      eventType: key,
+      callback: async (e) => await func(e, args),
+      originalCallback: func
+    });
+  }
+  if (shouldAppend) {
+    element.addEventListener(key, async (e) => await func(e, args));
+  }
+};
+var handleRefs = ({ value, element }) => {
+  if (typeof value !== "function") {
+    throw new Error("Ref must be a function");
+  }
+  value(element);
+};
 var setRef = (templater) => {
   templater._refs = [];
   const funcElementMap = new Map;
@@ -1980,9 +2007,7 @@ var setStateUpdater = (templater) => {
             }
           }
         });
-        console.log("calling...");
         await callback(e, ...args);
-        console.log("called...");
         const subscribers = functionSubscribersMap.get(funcWrapper);
         subscribers?.forEach((subscriber) => {
           const newEl = subscriber[1]();
@@ -2009,9 +2034,34 @@ var setStateUpdater = (templater) => {
   };
   return { functionSubscribersMap, listenerList };
 };
+var setGetUpdater = (t) => {
+  t.getUpdater = () => {
+    const subscribe = [];
+    const updater = (cb) => {
+      const updater2 = t.stateUpdater(cb);
+      subscribe.push(updater2);
+      return updater2;
+    };
+    return { subscribe, updater };
+  };
+};
+
+// lib/app.ts
+var app = (i, el) => {
+  const element = typeof el === "string" ? document.querySelector(el) : el;
+  if (!element && typeof el === "string") {
+    console.error("No element found with css selector: " + el);
+    return;
+  } else if (!element) {
+    console.error("No element found: " + el);
+    return;
+  }
+  i(templateBuilder(element));
+};
 
 // pages/hello.ts
 var t = (h) => {
+  const { subscribe, updater } = h.getUpdater();
   let width = 100;
   const stuff = [];
   const colors = [
@@ -2069,22 +2119,22 @@ var t = (h) => {
   ];
   const ref = h.ref();
   let word = "\uD83E\uDD53";
-  const updateWord = h.stateUpdater(() => {
+  const updateWord = updater(() => {
     const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
     word = words[Math.floor(Math.random() * words.length)];
     updateWidth();
   });
-  const updateWidth = h.stateUpdater(() => width += 1);
+  const updateWidth = updater(() => width += 1);
   let value = 0;
-  const updateValue = h.stateUpdater((_, n) => {
+  const updateValue = updater((_, n) => {
     value += n;
   });
   let catData = "";
   let fetchingCatData = false;
-  const toggleFetchingCatData = h.stateUpdater(() => {
+  const toggleFetchingCatData = updater(() => {
     fetchingCatData = !fetchingCatData;
   });
-  const fetchCatData = h.stateUpdater(async () => {
+  const fetchCatData = updater(async () => {
     toggleFetchingCatData();
     const res = await fetch("https://meowfacts.herokuapp.com/");
     const data = await res.json();
@@ -2092,26 +2142,18 @@ var t = (h) => {
     catData = data.data[0];
     toggleFetchingCatData();
   });
-  const addToStuff = h.stateUpdater((e) => {
+  const addToStuff = updater((e) => {
     stuff.push((stuff[stuff.length - 1] || 0) + 11);
   });
   let someBool = true;
-  const toggleBool = h.stateUpdater(() => {
+  const toggleBool = updater(() => {
     someBool = !someBool;
   });
   const thing = (text) => h.div(() => {
     h.text(`I am ${text}`);
   });
   return h.div({
-    subscribe: [
-      updateWord,
-      toggleBool,
-      updateValue,
-      addToStuff,
-      updateWidth,
-      fetchCatData,
-      toggleFetchingCatData
-    ],
+    subscribe,
     style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
     ["data-component-root"]: 1
   }, () => {
@@ -2190,14 +2232,4 @@ var t = (h) => {
     h.comment("This is a comment!");
   });
 };
-var app = (i, id) => {
-  const el = document.getElementById(id);
-  if (!el) {
-    console.error("No element found with id: " + id);
-    return;
-  }
-  const x = templater2(el);
-  i(x);
-  console.log(x);
-};
-app(t, "app");
+app(t, "#app");

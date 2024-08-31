@@ -1,5 +1,4 @@
 import { readdir } from "node:fs/promises";
-import { templater } from "./lib/templater";
 
 const PAGES_DIR = "./pages";
 const CLIENT_LIB_DIR = "./client-lib";
@@ -8,9 +7,7 @@ const CONTROLLER_DIR = "./controllers";
 const pagesFiles = await readdir(PAGES_DIR);
 const clientLibFiles = await readdir(CLIENT_LIB_DIR);
 const controllerPaths = await readdir(CONTROLLER_DIR, { recursive: true });
-const controllerFiles = controllerPaths.filter((f) =>
-  f.endsWith("controller.ts"),
-);
+const controllerFiles = controllerPaths.filter((f) => f.endsWith("controller.ts"));
 
 const pagesToBundle = pagesFiles.map((f) => PAGES_DIR + "/" + f);
 const clientLibToBundle = clientLibFiles.map((f) => CLIENT_LIB_DIR + "/" + f);
@@ -70,5 +67,3 @@ const server = Bun.serve({
     return new Response("404 Not Found", { status: 404 });
   },
 });
-
-export type Template = ReturnType<typeof templater>;
