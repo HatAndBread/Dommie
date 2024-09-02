@@ -3,12 +3,18 @@ var child = (h) => {
   let inputValue = "I am a text input";
   const updateInputValue = h.stateUpdater((e) => {
     inputValue = e.target.value;
+    h.send("inputValueChanged", inputValue);
   });
+  let someOtherValue = 0;
+  const updateSomeOtherValue = h.on("updateValue", (v) => someOtherValue = v);
   return h.div(() => {
     h.div(() => {
       h.text("I am the CHILD \uD83D\uDC76");
       h.h1({ subscribe: updateInputValue }, () => {
         h.text(inputValue);
+      });
+      h.h1({ subscribe: updateSomeOtherValue }, () => {
+        h.text(someOtherValue);
       });
       h.input({
         type: "text",
@@ -1872,29 +1878,25 @@ var TraceLogger = function() {
 function templateBuilder(root) {
   const allElements = {};
   for (const elementName of allHtmlElements) {
-    allElements[elementName] = (...args) => {
-      if (args.length > 3) {
-        throw new Error("Too many arguments");
-      }
-      const optionsOrCb = args.find((a) => typeof a === "object") || {};
-      const cb = args.find((a) => typeof a === "function") || undefined;
-      const text = args.find((a) => ![optionsOrCb, cb].includes(a)) || undefined;
-      $(elementName, optionsOrCb, cb, text);
+    allElements[elementName] = (optionsOrCb, cb) => {
+      $(elementName, optionsOrCb, cb);
     };
   }
   setRef(allElements);
   const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
+  const messages = [];
+  setOn(allElements, messages);
   const nesting = [root];
-  function $(tag, optionsOrCb, cb, text, shouldAppend = true) {
+  function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
-    if (tag === "text" && text) {
-      const textNode = document.createTextNode(text);
+    if (tag === "text") {
+      const textNode = document.createTextNode(optionsOrCb);
       if (shouldAppend)
         parent.appendChild(textNode);
       return textNode;
     }
     if (tag === "comment") {
-      const comment = document.createComment(text || "");
+      const comment = document.createComment(optionsOrCb);
       if (shouldAppend)
         parent.appendChild(comment);
       return comment;
@@ -1906,10 +1908,8 @@ function templateBuilder(root) {
       optionsOrCb = {};
     }
     const element = document.createElement(tag);
-    if (text) {
-      const textNode = document.createTextNode(text);
-      element.appendChild(textNode);
-    }
+    if (!optionsOrCb)
+      optionsOrCb = {};
     for (let key in optionsOrCb) {
       const context = {
         element,
@@ -1922,11 +1922,13 @@ function templateBuilder(root) {
         shouldAppend,
         functionSubscribersMap,
         listenerList,
-        text,
         $
       };
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
         handleStyle(context);
+      } else if (key === "text") {
+        console.log(optionsOrCb, key);
+        element.appendChild(document.createTextNode(optionsOrCb[key]));
       } else if (key === "subscribe") {
         handleSubscription(context);
       } else if (allEventListeners.includes(key)) {
@@ -1945,7 +1947,7 @@ function templateBuilder(root) {
         parent.appendChild(element);
       }
     } else if (cb) {
-      throw new Error("Callback must be a function!");
+      throw new Error(`Callback must be a function! Recieved: ${cb}`);
     } else {
       if (shouldAppend) {
         parent.appendChild(element);
@@ -1977,7 +1979,7 @@ var handleSubscription = (context) => {
       });
     }
     funcs.forEach((f) => {
-      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, context.text, false);
+      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
       if (context.functionSubscribersMap.get(f)) {
         context.functionSubscribersMap.get(f)?.push([context.element, regenerator]);
       } else {
@@ -2019,6 +2021,25 @@ var handleRefs = ({ value, element }) => {
     throw new Error("Ref must be a function");
   }
   value(element);
+};
+var setOn = (templater, messages) => {
+  templater.on = (event, callback) => {
+    const updater = templater.stateUpdater(() => {
+    });
+    const wrapper = (...args) => {
+      callback(...args);
+      updater();
+    };
+    messages.push({ event, callback: wrapper });
+    return updater;
+  };
+  templater.send = (event, data) => {
+    messages.forEach((message) => {
+      if (message.event === event) {
+        message.callback(data);
+      }
+    });
+  };
 };
 var setRef = (templater) => {
   templater._refs = [];
@@ -2161,6 +2182,8 @@ var t = (h) => {
   let value = 0;
   const updateValue = h.stateUpdater((_, n) => {
     value += n;
+    console.log(value);
+    h.send("updateValue", value);
   });
   let catData = "";
   let fetchingCatData = false;
@@ -2185,11 +2208,18 @@ var t = (h) => {
   const thing = (text) => h.div(() => {
     h.text(`I am ${text}`);
   });
+  let inputValue = "I am not a text input";
+  const inputValueUpdated = h.on("inputValueChanged", (v) => {
+    inputValue = v;
+  });
   return h.div({
     style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] }
   }, () => {
     h.a({ href: "https://www.google.com" }, () => {
       h.text("I am a link");
+    });
+    h.div({ subscribe: inputValueUpdated }, () => {
+      h.text(inputValue);
     });
     h.div(() => {
       h.text("This is one instance of a child");
@@ -2199,12 +2229,10 @@ var t = (h) => {
       h.text("This is another instance of a child");
       child(h);
     });
-    h.div("You can just give me a string now");
-    h.div({ subscribe: fetchCatData }, "Me too");
     h.div({ subscribe: updateWord }, () => {
       h.text(word);
     });
-    h.button("Change word", { click: updateWord });
+    h.button({ click: updateWord, text: "Change word" });
     h.div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
       h.text(fetchingCatData ? "Fetching cat data..." : catData);
     });
@@ -2231,12 +2259,8 @@ var t = (h) => {
     h.div({ subscribe: updateValue }, () => {
       h.text(value);
     });
-    h.button({ click: [updateValue, [1]] }, () => {
-      h.text("Increment");
-    });
-    h.button({ click: [updateValue, [-1]] }, () => {
-      h.text("Decrement");
-    });
+    h.button({ click: [updateValue, [1]], text: "Increment" });
+    h.button({ click: [updateValue, [-1]], text: "Decrement" });
     thing("baka");
     h.button({ click: addToStuff, subscribe: addToStuff }, () => {
       h.text("Add to stuff" + stuff.length);

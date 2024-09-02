@@ -1,6 +1,8 @@
 export interface Templater extends AllElements {
+  on: (event: string, callback: Function) => Function;
   ref: () => () => Element | null;
   stateUpdater: (callback: Function, args?: any[]) => Function;
+  send: (event: string, data: any) => void;
 }
 type ElementInput = (...args: any) => Templater;
 

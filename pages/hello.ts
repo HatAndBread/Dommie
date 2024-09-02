@@ -72,6 +72,8 @@ const t: Component = (h) => {
   let value = 0;
   const updateValue = h.stateUpdater((_: Event, n: number) => {
     value += n;
+    console.log(value);
+    h.send("updateValue", value);
   });
 
   let catData = "";
@@ -104,6 +106,11 @@ const t: Component = (h) => {
       h.text(`I am ${text}`);
     });
 
+  let inputValue = "I am not a text input";
+  const inputValueUpdated = h.on("inputValueChanged", (v: string) => {
+    inputValue = v;
+  });
+
   return h.div(
     {
       style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
@@ -111,6 +118,9 @@ const t: Component = (h) => {
     () => {
       h.a({ href: "https://www.google.com" }, () => {
         h.text("I am a link");
+      });
+      h.div({ subscribe: inputValueUpdated }, () => {
+        h.text(inputValue);
       });
       h.div(() => {
         h.text("This is one instance of a child");
@@ -120,12 +130,10 @@ const t: Component = (h) => {
         h.text("This is another instance of a child");
         child(h);
       });
-      h.div("You can just give me a string now");
-      h.div({ subscribe: fetchCatData }, "Me too");
       h.div({ subscribe: updateWord }, () => {
         h.text(word);
       });
-      h.button("Change word", { click: updateWord });
+      h.button({ click: updateWord, text: "Change word" });
       h.div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
         h.text(fetchingCatData ? "Fetching cat data..." : catData);
       });
@@ -152,12 +160,8 @@ const t: Component = (h) => {
       h.div({ subscribe: updateValue }, () => {
         h.text(value);
       });
-      h.button({ click: [updateValue, [1]] }, () => {
-        h.text("Increment");
-      });
-      h.button({ click: [updateValue, [-1]] }, () => {
-        h.text("Decrement");
-      });
+      h.button({ click: [updateValue, [1]], text: "Increment" });
+      h.button({ click: [updateValue, [-1]], text: "Decrement" });
       thing("baka");
       h.button({ click: addToStuff, subscribe: addToStuff }, () => {
         h.text("Add to stuff" + stuff.length);
