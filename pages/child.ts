@@ -7,23 +7,25 @@ const child: Component = (h) => {
     h.send("inputValueChanged", inputValue);
   });
 
-  let someOtherValue = 0;
-  const updateSomeOtherValue = h.on("updateValue", (v: number) => (someOtherValue = v));
+  return h.component(() => {
+    let someOtherValue = 0;
+    const updateSomeOtherValue = h.on("updateValue", (v: number) => (someOtherValue = v));
 
-  return h.div(() => {
     h.div(() => {
-      h.text("I am the CHILD 👶");
-      h.h1({ subscribe: updateInputValue }, () => {
-        h.text(inputValue);
-      });
-      h.h1({ subscribe: updateSomeOtherValue }, () => {
-        h.text(someOtherValue);
-      });
-      h.input({
-        type: "text",
-        value: () => inputValue,
-        subscribe: updateInputValue,
-        input: updateInputValue,
+      h.div(() => {
+        h.text("I am the CHILD 👶");
+        h.h1({ subscribe: updateInputValue }, () => {
+          h.text(inputValue);
+        });
+        h.h1({ subscribe: updateSomeOtherValue }, () => {
+          h.text(someOtherValue);
+        });
+        h.input({
+          type: "text",
+          value: () => inputValue,
+          subscribe: updateInputValue,
+          input: updateInputValue,
+        });
       });
     });
   });

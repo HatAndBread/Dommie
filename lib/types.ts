@@ -1,4 +1,7 @@
+import { ComponentBase } from "./template-builder";
+
 export interface Templater extends AllElements {
+  component: (callback: Function) => ComponentBase;
   on: (event: string, callback: Function) => Function;
   ref: () => () => Element | null;
   stateUpdater: (callback: Function, args?: any[]) => Function;

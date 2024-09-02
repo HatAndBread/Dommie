@@ -111,102 +111,104 @@ const t: Component = (h) => {
     inputValue = v;
   });
 
-  return h.div(
-    {
-      style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
-    },
-    () => {
-      h.a({ href: "https://www.google.com" }, () => {
-        h.text("I am a link");
-      });
-      h.div({ subscribe: inputValueUpdated }, () => {
-        h.text(inputValue);
-      });
-      h.div(() => {
-        h.text("This is one instance of a child");
-        child(h);
-      });
-      h.div(() => {
-        h.text("This is another instance of a child");
-        child(h);
-      });
-      h.div({ subscribe: updateWord }, () => {
-        h.text(word);
-      });
-      h.button({ click: updateWord, text: "Change word" });
-      h.div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
-        h.text(fetchingCatData ? "Fetching cat data..." : catData);
-      });
-      h.button({ click: fetchCatData }, () => {
-        h.text("Fetch cat data");
-      });
-      h.div({ subscribe: [toggleBool] }, () => {
-        if (!someBool) {
-          h.button({ click: toggleBool, ref: ref }, () => {
-            h.text("someBool is false");
-          });
-        }
-      });
-      h.text("I am some text");
-      h.br();
-      h.text("I am some more text");
-      h.div({ subscribe: toggleBool }, () => {
-        if (someBool) {
-          h.button({ click: toggleBool }, () => {
-            h.text("someBool is true");
-          });
-        }
-      });
-      h.div({ subscribe: updateValue }, () => {
-        h.text(value);
-      });
-      h.button({ click: [updateValue, [1]], text: "Increment" });
-      h.button({ click: [updateValue, [-1]], text: "Decrement" });
-      thing("baka");
-      h.button({ click: addToStuff, subscribe: addToStuff }, () => {
-        h.text("Add to stuff" + stuff.length);
-      });
-      thing("Aho");
-      h.ul(
-        {
-          style: {
-            backgroundColor: () => colors[Math.floor(Math.random() * colors.length)],
+  return h.component(() => {
+    h.div(
+      {
+        style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
+      },
+      () => {
+        h.a({ href: "https://www.google.com" }, () => {
+          h.text("I am a link");
+        });
+        h.div({ subscribe: inputValueUpdated }, () => {
+          h.text(inputValue);
+        });
+        h.div(() => {
+          h.text("This is one instance of a child");
+          child(h);
+        });
+        h.div(() => {
+          h.text("This is another instance of a child");
+          child(h);
+        });
+        h.div({ subscribe: updateWord }, () => {
+          h.text(word);
+        });
+        h.button({ click: updateWord, text: "Change word" });
+        h.div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
+          h.text(fetchingCatData ? "Fetching cat data..." : catData);
+        });
+        h.button({ click: fetchCatData }, () => {
+          h.text("Fetch cat data");
+        });
+        h.div({ subscribe: [toggleBool] }, () => {
+          if (!someBool) {
+            h.button({ click: toggleBool, ref: ref }, () => {
+              h.text("someBool is false");
+            });
+          }
+        });
+        h.text("I am some text");
+        h.br();
+        h.text("I am some more text");
+        h.div({ subscribe: toggleBool }, () => {
+          if (someBool) {
+            h.button({ click: toggleBool }, () => {
+              h.text("someBool is true");
+            });
+          }
+        });
+        h.div({ subscribe: updateValue }, () => {
+          h.text(value);
+        });
+        h.button({ click: [updateValue, [1]], text: "Increment" });
+        h.button({ click: [updateValue, [-1]], text: "Decrement" });
+        thing("baka");
+        h.button({ click: addToStuff, subscribe: addToStuff }, () => {
+          h.text("Add to stuff" + stuff.length);
+        });
+        thing("Aho");
+        h.ul(
+          {
+            style: {
+              backgroundColor: () => colors[Math.floor(Math.random() * colors.length)],
+            },
+            subscribe: addToStuff,
           },
-          subscribe: addToStuff,
-        },
-        () => {
-          stuff.forEach((thing) => {
-            h.li(
-              {
-                style: {
-                  backgroundColor: colors[Math.floor(Math.random() * colors.length)],
+          () => {
+            stuff.forEach((thing) => {
+              h.li(
+                {
+                  style: {
+                    backgroundColor: colors[Math.floor(Math.random() * colors.length)],
+                  },
                 },
-              },
-              () => {
-                h.text(`I am a list item with value: ${thing}`);
-              },
-            );
-          });
-        },
-      );
-      h.div(
-        {
-          style: {
-            backgroundColor: "pink",
-            width: () => `${width}px`,
-            height: "100px",
+                () => {
+                  h.text(`I am a list item with value: ${thing}`);
+                },
+              );
+            });
           },
-          class: () => `${width}`,
-          subscribe: updateWidth,
-          mousemove: updateWidth,
-        },
-        () => {
-          h.text("mouse over me");
-        },
-      );
-      h.comment("This is a comment!");
-    },
-  );
+        );
+        h.div(
+          {
+            style: {
+              backgroundColor: "pink",
+              width: () => `${width}px`,
+              height: "100px",
+            },
+            class: () => `${width}`,
+            subscribe: updateWidth,
+            mousemove: updateWidth,
+          },
+          () => {
+            h.text("mouse over me");
+          },
+        );
+        h.comment("This is a comment!");
+      },
+    );
+  });
 };
 
 app(t, "#app");

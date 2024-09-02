@@ -24,6 +24,7 @@ type Context = {
   ) => Comment | HTMLElement;
 };
 
+let componentId = 0;
 export function templateBuilder(root: Element) {
   const allElements = <Templater>{};
   for (const elementName of allHtmlElements) {
@@ -64,6 +65,14 @@ export function templateBuilder(root: Element) {
       optionsOrCb = {};
     }
     const element = document.createElement(tag);
+    if (tag === "component") {
+      optionsOrCb = { style: "display: contents;" };
+      if (shouldAppend) {
+        componentId++;
+        const id = `ghost-component-${componentId}`;
+        element.id = id;
+      }
+    }
     if (!optionsOrCb) optionsOrCb = {};
     for (let key in optionsOrCb) {
       const context: Context = {
@@ -288,6 +297,12 @@ const setStateUpdater = (templater: Templater) => {
   return { functionSubscribersMap, listenerList };
 };
 
+export class ComponentBase {
+  public id: string;
+  constructor(id: string) {
+    this.id = id;
+  }
+}
 /*
   String templater
 */
