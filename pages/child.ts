@@ -2,14 +2,14 @@ import type { Component } from "../lib/app";
 
 const child: Component = (h) => {
   let inputValue = "I am a text input";
-  const updateInputValue = h.stateUpdater((e: Event) => {
-    inputValue = (e.target as HTMLInputElement).value;
-    h.send("inputValueChanged", inputValue);
-  });
+  let someOtherValue = 0;
 
-  return h.component(() => {
-    let someOtherValue = 0;
-    const updateSomeOtherValue = h.on("updateValue", (v: number) => (someOtherValue = v));
+  return h.component(({ on, send, stateUpdater }) => {
+    const updateSomeOtherValue = on("updateValue", (v: number) => (someOtherValue = v));
+    const updateInputValue = stateUpdater((e: Event) => {
+      inputValue = (e.target as HTMLInputElement).value;
+      send("inputValueChanged", inputValue);
+    });
 
     h.div(() => {
       h.div(() => {

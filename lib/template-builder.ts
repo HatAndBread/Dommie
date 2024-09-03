@@ -38,10 +38,9 @@ export function templateBuilder(root: Element) {
     };
   }
 
-  setRef(allElements);
-  const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
-  const messages: { event: string; callback: Function }[] = [];
-  setOn(allElements, messages);
+  const ref = setRef(allElements);
+  const { functionSubscribersMap, listenerList, stateUpdater } = getStateUpdater();
+  const messages: { event: string; callback: Function; componentId: string }[] = [];
   const nesting = [root];
   function $(tag: string, optionsOrCb: any, cb?: Function, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -108,7 +107,13 @@ export function templateBuilder(root: Element) {
     }
     if (typeof cb === "function") {
       nesting.push(element);
-      cb();
+      if (tag === "component") {
+        const on = getOn(stateUpdater, element.id, messages);
+        const send = getSend(messages);
+        cb({ on, send, stateUpdater, ref });
+      } else {
+        cb();
+      }
       nesting.pop();
       if (shouldAppend) {
         parent.appendChild(element);
@@ -201,17 +206,24 @@ const handleRefs = ({ value, element }: Context) => {
   value(element);
 };
 
-const setOn = (templater: Templater, messages: { event: string; callback: Function }[]) => {
-  templater.on = (event: string, callback: Function) => {
-    const updater = templater.stateUpdater(() => {});
+const getOn = (
+  stateUpdater: Function,
+  componentId: string,
+  messages: { event: string; callback: Function; componentId: string }[],
+) => {
+  return (event: string, callback: Function) => {
+    const updater = stateUpdater(() => {});
     const wrapper = (...args: any[]) => {
       callback(...args);
       updater();
     };
-    messages.push({ event, callback: wrapper });
+    messages.push({ componentId, event, callback: wrapper });
     return updater;
   };
-  templater.send = (event: string, data: any) => {
+};
+
+const getSend = (messages: { event: string; callback: Function }[]) => {
+  return (event: string, data: any) => {
     messages.forEach((message) => {
       if (message.event === event) {
         message.callback(data);
@@ -223,7 +235,7 @@ const setOn = (templater: Templater, messages: { event: string; callback: Functi
 const setRef = (templater: Templater) => {
   templater._refs = [];
   const funcElementMap = new Map<Function, Element>();
-  templater.ref = () => {
+  return () => {
     const func = (el?: Element) => {
       if (el) {
         funcElementMap.set(func, el);
@@ -244,10 +256,10 @@ type ListenerList = ({
   originalCallback: Function;
 } | null)[];
 
-const setStateUpdater = (templater: Templater) => {
+const getStateUpdater = () => {
   const functionSubscribersMap: FuncSubscriberMap = new Map();
   const listenerList: ListenerList = [];
-  templater.stateUpdater = (callback: Function) => {
+  const stateUpdater = (callback: Function) => {
     const getFuncWrapper = () => {
       const funcWrapper = async (e: Event, args: any[] = []) => {
         const needListeners: string[] = [];
@@ -294,7 +306,7 @@ const setStateUpdater = (templater: Templater) => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList };
+  return { functionSubscribersMap, listenerList, stateUpdater };
 };
 
 export class ComponentBase {

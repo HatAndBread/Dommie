@@ -1,16 +1,18 @@
 import { ComponentBase } from "./template-builder";
 
-export interface Templater extends AllElements {
-  component: (callback: Function) => ComponentBase;
+export interface ComponentBaseInput {
   on: (event: string, callback: Function) => Function;
   ref: () => () => Element | null;
-  stateUpdater: (callback: Function, args?: any[]) => Function;
   send: (event: string, data: any) => void;
+  stateUpdater: (callback: Function) => (e: Event, ...args: any[]) => Promise<void>;
+}
+export interface Templater extends AllElements {
+  component: (callback: (i: ComponentBaseInput) => any) => ComponentBase;
+  _refs: Element[];
 }
 type ElementInput = (...args: any) => Templater;
 
 export interface AllElements {
-  _refs: Element[];
   a: ElementInput;
   abbr: ElementInput;
   acronym: ElementInput;

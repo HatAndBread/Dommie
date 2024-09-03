@@ -1,13 +1,13 @@
 // pages/child.ts
 var child = (h) => {
   let inputValue = "I am a text input";
-  const updateInputValue = h.stateUpdater((e) => {
-    inputValue = e.target.value;
-    h.send("inputValueChanged", inputValue);
-  });
-  return h.component(() => {
-    let someOtherValue = 0;
-    const updateSomeOtherValue = h.on("updateValue", (v) => someOtherValue = v);
+  let someOtherValue = 0;
+  return h.component(({ on, send, stateUpdater }) => {
+    const updateSomeOtherValue = on("updateValue", (v) => someOtherValue = v);
+    const updateInputValue = stateUpdater((e) => {
+      inputValue = e.target.value;
+      send("inputValueChanged", inputValue);
+    });
     h.div(() => {
       h.div(() => {
         h.text("I am the CHILD \uD83D\uDC76");

@@ -1,13 +1,13 @@
 // pages/child.ts
 var child = (h) => {
   let inputValue = "I am a text input";
-  const updateInputValue = h.stateUpdater((e) => {
-    inputValue = e.target.value;
-    h.send("inputValueChanged", inputValue);
-  });
-  return h.component(() => {
-    let someOtherValue = 0;
-    const updateSomeOtherValue = h.on("updateValue", (v) => someOtherValue = v);
+  let someOtherValue = 0;
+  return h.component(({ on, send, stateUpdater }) => {
+    const updateSomeOtherValue = on("updateValue", (v) => someOtherValue = v);
+    const updateInputValue = stateUpdater((e) => {
+      inputValue = e.target.value;
+      send("inputValueChanged", inputValue);
+    });
     h.div(() => {
       h.div(() => {
         h.text("I am the CHILD \uD83D\uDC76");
@@ -1890,10 +1890,9 @@ function templateBuilder(root) {
       $(elementName, optionsOrCb, cb);
     };
   }
-  setRef(allElements);
-  const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
+  const ref = setRef(allElements);
+  const { functionSubscribersMap, listenerList, stateUpdater } = getStateUpdater();
   const messages = [];
-  setOn(allElements, messages);
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -1957,7 +1956,13 @@ function templateBuilder(root) {
     }
     if (typeof cb === "function") {
       nesting.push(element);
-      cb();
+      if (tag === "component") {
+        const on = getOn(stateUpdater, element.id, messages);
+        const send = getSend(messages);
+        cb({ on, send, stateUpdater, ref });
+      } else {
+        cb();
+      }
       nesting.pop();
       if (shouldAppend) {
         parent.appendChild(element);
@@ -2039,18 +2044,20 @@ var handleRefs = ({ value, element }) => {
   }
   value(element);
 };
-var setOn = (templater, messages) => {
-  templater.on = (event, callback) => {
-    const updater = templater.stateUpdater(() => {
+var getOn = (stateUpdater, componentId2, messages) => {
+  return (event, callback) => {
+    const updater = stateUpdater(() => {
     });
     const wrapper = (...args) => {
       callback(...args);
       updater();
     };
-    messages.push({ event, callback: wrapper });
+    messages.push({ componentId: componentId2, event, callback: wrapper });
     return updater;
   };
-  templater.send = (event, data) => {
+};
+var getSend = (messages) => {
+  return (event, data) => {
     messages.forEach((message) => {
       if (message.event === event) {
         message.callback(data);
@@ -2061,7 +2068,7 @@ var setOn = (templater, messages) => {
 var setRef = (templater) => {
   templater._refs = [];
   const funcElementMap = new Map;
-  templater.ref = () => {
+  return () => {
     const func = (el) => {
       if (el) {
         funcElementMap.set(func, el);
@@ -2074,10 +2081,10 @@ var setRef = (templater) => {
     return func;
   };
 };
-var setStateUpdater = (templater) => {
+var getStateUpdater = () => {
   const functionSubscribersMap = new Map;
   const listenerList = [];
-  templater.stateUpdater = (callback) => {
+  const stateUpdater = (callback) => {
     const getFuncWrapper = () => {
       const funcWrapper = async (e, args = []) => {
         const needListeners = [];
@@ -2115,7 +2122,7 @@ var setStateUpdater = (templater) => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList };
+  return { functionSubscribersMap, listenerList, stateUpdater };
 };
 
 // lib/app.ts
@@ -2188,110 +2195,107 @@ var t = (h) => {
     "gray",
     "black"
   ];
-  const ref = h.ref();
   let word = "\uD83E\uDD53";
-  const updateWord = h.stateUpdater(() => {
-    const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
-    word = words[Math.floor(Math.random() * words.length)];
-    updateWidth();
-  });
-  const updateWidth = h.stateUpdater(() => width += 1);
   let value = 0;
-  const updateValue = h.stateUpdater((_, n) => {
-    value += n;
-    console.log(value);
-    h.send("updateValue", value);
-  });
   let catData = "";
   let fetchingCatData = false;
-  const toggleFetchingCatData = h.stateUpdater(() => {
-    fetchingCatData = !fetchingCatData;
-  });
-  const fetchCatData = h.stateUpdater(async () => {
-    toggleFetchingCatData();
-    const res = await fetch("https://meowfacts.herokuapp.com/");
-    const data = await res.json();
-    console.log(data.data[0]);
-    catData = data.data[0];
-    toggleFetchingCatData();
-  });
-  const addToStuff = h.stateUpdater((e) => {
-    stuff.push((stuff[stuff.length - 1] || 0) + 11);
-  });
   let someBool = true;
-  const toggleBool = h.stateUpdater(() => {
-    someBool = !someBool;
-  });
   const thing = (text) => h.div(() => {
     h.text(`I am ${text}`);
   });
   let inputValue = "I am not a text input";
-  const inputValueUpdated = h.on("inputValueChanged", (v) => {
-    inputValue = v;
-  });
-  return h.component(() => {
-    h.div({
+  return h.component(({ on, send, stateUpdater, ref }) => {
+    const r = ref();
+    const updateWidth = stateUpdater(() => width += 1);
+    const updateWord = stateUpdater(() => {
+      const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
+      word = words[Math.floor(Math.random() * words.length)];
+      updateWidth();
+    });
+    const updateValue = stateUpdater((_, n) => {
+      value += n;
+      send("updateValue", value);
+    });
+    const toggleBool = stateUpdater(() => someBool = !someBool);
+    const addToStuff = stateUpdater((e) => {
+      stuff.push((stuff[stuff.length - 1] || 0) + 11);
+    });
+    const toggleFetchingCatData = stateUpdater(() => {
+      fetchingCatData = !fetchingCatData;
+    });
+    const fetchCatData = stateUpdater(async () => {
+      toggleFetchingCatData();
+      const res = await fetch("https://meowfacts.herokuapp.com/");
+      const data = await res.json();
+      catData = data.data[0];
+      toggleFetchingCatData();
+    });
+    const inputValueUpdated = on("inputValueChanged", (v) => {
+      inputValue = v;
+    });
+    const { div, button, a, text, br, ul, li, comment } = h;
+    div({
       style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] }
     }, () => {
-      h.a({ href: "https://www.google.com" }, () => {
+      a({ href: "https://www.google.com" }, () => {
         h.text("I am a link");
       });
-      h.div({ subscribe: inputValueUpdated }, () => {
-        h.text(inputValue);
+      div({ subscribe: inputValueUpdated }, () => {
+        text(inputValue);
       });
-      h.div(() => {
+      div(() => {
         h.text("This is one instance of a child");
         child(h);
       });
-      h.div(() => {
-        h.text("This is another instance of a child");
+      div(() => {
+        text("This is another instance of a child");
         child(h);
       });
-      h.div({ subscribe: updateWord }, () => {
-        h.text(word);
+      div({ subscribe: updateWord }, () => {
+        text(word);
       });
-      h.button({ click: updateWord, text: "Change word" });
-      h.div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
-        h.text(fetchingCatData ? "Fetching cat data..." : catData);
+      button({ click: updateWord, text: "Change word" });
+      div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
+        text(fetchingCatData ? "Fetching cat data..." : catData);
       });
-      h.button({ click: fetchCatData }, () => {
-        h.text("Fetch cat data");
+      button({ click: fetchCatData }, () => {
+        text("Fetch cat data");
       });
-      h.div({ subscribe: [toggleBool] }, () => {
+      div({ subscribe: [toggleBool] }, () => {
         if (!someBool) {
-          h.button({ click: toggleBool, ref }, () => {
-            h.text("someBool is false");
+          button({ click: toggleBool, ref: r }, () => {
+            text("someBool is false");
           });
         }
       });
-      h.text("I am some text");
-      h.br();
-      h.text("I am some more text");
-      h.div({ subscribe: toggleBool }, () => {
+      text("I am some text");
+      br();
+      text("I am some more text");
+      div({ subscribe: toggleBool }, () => {
         if (someBool) {
-          h.button({ click: toggleBool }, () => {
-            h.text("someBool is true");
+          button({ click: toggleBool }, () => {
+            text("someBool is true");
           });
         }
       });
-      h.div({ subscribe: updateValue }, () => {
-        h.text(value);
+      div({ subscribe: updateValue }, () => {
+        text(value);
       });
-      h.button({ click: [updateValue, [1]], text: "Increment" });
-      h.button({ click: [updateValue, [-1]], text: "Decrement" });
+      button({ click: [updateValue, [1]], text: "Increment" });
+      button({ click: [updateValue, [-1]], text: "Decrement" });
       thing("baka");
-      h.button({ click: addToStuff, subscribe: addToStuff }, () => {
-        h.text("Add to stuff" + stuff.length);
+      button({ click: addToStuff, subscribe: addToStuff }, () => {
+        text("Add to stuff" + stuff.length);
       });
       thing("Aho");
-      h.ul({
+      ul({
         style: {
           backgroundColor: () => colors[Math.floor(Math.random() * colors.length)]
         },
         subscribe: addToStuff
       }, () => {
         stuff.forEach((thing2) => {
-          h.li({
+          li({
             style: {
               backgroundColor: colors[Math.floor(Math.random() * colors.length)]
             }
@@ -2300,7 +2304,7 @@ var t = (h) => {
           });
         });
       });
-      h.div({
+      div({
         style: {
           backgroundColor: "pink",
           width: () => `${width}px`,
@@ -2310,9 +2314,9 @@ var t = (h) => {
         subscribe: updateWidth,
         mousemove: updateWidth
       }, () => {
-        h.text("mouse over me");
+        text("mouse over me");
       });
-      h.comment("This is a comment!");
+      comment("This is a comment!");
     });
   });
 };

@@ -59,47 +59,14 @@ const t: Component = (h) => {
     "black",
   ];
 
-  const ref = h.ref();
   let word = "🥓";
 
-  const updateWord = h.stateUpdater(() => {
-    const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
-    word = words[Math.floor(Math.random() * words.length)];
-    updateWidth();
-  });
-
-  const updateWidth = h.stateUpdater(() => (width += 1));
   let value = 0;
-  const updateValue = h.stateUpdater((_: Event, n: number) => {
-    value += n;
-    console.log(value);
-    h.send("updateValue", value);
-  });
 
   let catData = "";
   let fetchingCatData = false;
 
-  const toggleFetchingCatData = h.stateUpdater(() => {
-    fetchingCatData = !fetchingCatData;
-  });
-
-  const fetchCatData = h.stateUpdater(async () => {
-    toggleFetchingCatData();
-    const res = await fetch("https://meowfacts.herokuapp.com/");
-    const data = await res.json();
-    console.log(data.data[0]);
-    catData = data.data[0];
-    toggleFetchingCatData();
-  });
-
-  const addToStuff = h.stateUpdater((e: Event) => {
-    stuff.push((stuff[stuff.length - 1] || 0) + 11);
-  });
-
   let someBool = true;
-  const toggleBool = h.stateUpdater(() => {
-    someBool = !someBool;
-  });
 
   const thing = (text: string) =>
     h.div(() => {
@@ -107,68 +74,98 @@ const t: Component = (h) => {
     });
 
   let inputValue = "I am not a text input";
-  const inputValueUpdated = h.on("inputValueChanged", (v: string) => {
-    inputValue = v;
-  });
 
-  return h.component(() => {
-    h.div(
+  return h.component(({ on, send, stateUpdater, ref }) => {
+    const r = ref();
+
+    const updateWidth = stateUpdater(() => (width += 1));
+    const updateWord = stateUpdater(() => {
+      const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
+      word = words[Math.floor(Math.random() * words.length)];
+      updateWidth();
+    });
+    const updateValue = stateUpdater((_: Event, n: number) => {
+      value += n;
+      send("updateValue", value);
+    });
+    const toggleBool = stateUpdater(() => (someBool = !someBool));
+    const addToStuff = stateUpdater((e: Event) => {
+      stuff.push((stuff[stuff.length - 1] || 0) + 11);
+    });
+    const toggleFetchingCatData = stateUpdater(() => {
+      fetchingCatData = !fetchingCatData;
+    });
+    const fetchCatData = stateUpdater(async () => {
+      toggleFetchingCatData();
+      const res = await fetch("https://meowfacts.herokuapp.com/");
+      const data = await res.json();
+      catData = data.data[0];
+      toggleFetchingCatData();
+    });
+
+    const inputValueUpdated = on("inputValueChanged", (v: string) => {
+      inputValue = v;
+    });
+
+    // template
+    const { div, button, a, text, br, ul, li, comment } = h;
+    div(
       {
         style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
       },
       () => {
-        h.a({ href: "https://www.google.com" }, () => {
+        a({ href: "https://www.google.com" }, () => {
           h.text("I am a link");
         });
-        h.div({ subscribe: inputValueUpdated }, () => {
-          h.text(inputValue);
+        div({ subscribe: inputValueUpdated }, () => {
+          text(inputValue);
         });
-        h.div(() => {
+        div(() => {
           h.text("This is one instance of a child");
           child(h);
         });
-        h.div(() => {
-          h.text("This is another instance of a child");
+        div(() => {
+          text("This is another instance of a child");
           child(h);
         });
-        h.div({ subscribe: updateWord }, () => {
-          h.text(word);
+        div({ subscribe: updateWord }, () => {
+          text(word);
         });
-        h.button({ click: updateWord, text: "Change word" });
-        h.div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
-          h.text(fetchingCatData ? "Fetching cat data..." : catData);
+        button({ click: updateWord, text: "Change word" });
+        div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
+          text(fetchingCatData ? "Fetching cat data..." : catData);
         });
-        h.button({ click: fetchCatData }, () => {
-          h.text("Fetch cat data");
+        button({ click: fetchCatData }, () => {
+          text("Fetch cat data");
         });
-        h.div({ subscribe: [toggleBool] }, () => {
+        div({ subscribe: [toggleBool] }, () => {
           if (!someBool) {
-            h.button({ click: toggleBool, ref: ref }, () => {
-              h.text("someBool is false");
+            button({ click: toggleBool, ref: r }, () => {
+              text("someBool is false");
             });
           }
         });
-        h.text("I am some text");
-        h.br();
-        h.text("I am some more text");
-        h.div({ subscribe: toggleBool }, () => {
+        text("I am some text");
+        br();
+        text("I am some more text");
+        div({ subscribe: toggleBool }, () => {
           if (someBool) {
-            h.button({ click: toggleBool }, () => {
-              h.text("someBool is true");
+            button({ click: toggleBool }, () => {
+              text("someBool is true");
             });
           }
         });
-        h.div({ subscribe: updateValue }, () => {
-          h.text(value);
+        div({ subscribe: updateValue }, () => {
+          text(value);
         });
-        h.button({ click: [updateValue, [1]], text: "Increment" });
-        h.button({ click: [updateValue, [-1]], text: "Decrement" });
+        button({ click: [updateValue, [1]], text: "Increment" });
+        button({ click: [updateValue, [-1]], text: "Decrement" });
         thing("baka");
-        h.button({ click: addToStuff, subscribe: addToStuff }, () => {
-          h.text("Add to stuff" + stuff.length);
+        button({ click: addToStuff, subscribe: addToStuff }, () => {
+          text("Add to stuff" + stuff.length);
         });
         thing("Aho");
-        h.ul(
+        ul(
           {
             style: {
               backgroundColor: () => colors[Math.floor(Math.random() * colors.length)],
@@ -177,7 +174,7 @@ const t: Component = (h) => {
           },
           () => {
             stuff.forEach((thing) => {
-              h.li(
+              li(
                 {
                   style: {
                     backgroundColor: colors[Math.floor(Math.random() * colors.length)],
@@ -190,7 +187,7 @@ const t: Component = (h) => {
             });
           },
         );
-        h.div(
+        div(
           {
             style: {
               backgroundColor: "pink",
@@ -202,10 +199,10 @@ const t: Component = (h) => {
             mousemove: updateWidth,
           },
           () => {
-            h.text("mouse over me");
+            text("mouse over me");
           },
         );
-        h.comment("This is a comment!");
+        comment("This is a comment!");
       },
     );
   });
