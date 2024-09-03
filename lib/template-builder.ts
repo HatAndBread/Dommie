@@ -24,6 +24,8 @@ type Context = {
   ) => Comment | HTMLElement;
 };
 
+type MessagesList = { event: string; callback: Function; componentId: string }[];
+
 let componentId = 0;
 export function templateBuilder(root: Element) {
   const allElements = <Templater>{};
@@ -38,9 +40,9 @@ export function templateBuilder(root: Element) {
     };
   }
 
-  const ref = setRef(allElements);
-  const { functionSubscribersMap, listenerList, stateUpdater } = getStateUpdater();
-  const messages: { event: string; callback: Function; componentId: string }[] = [];
+  const refs: Element[] = [];
+  const ref = getRef(refs);
+  const { functionSubscribersMap, listenerList, stateUpdater, messagesList } = getStateUpdater();
   const nesting = [root];
   function $(tag: string, optionsOrCb: any, cb?: Function, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -108,8 +110,8 @@ export function templateBuilder(root: Element) {
     if (typeof cb === "function") {
       nesting.push(element);
       if (tag === "component") {
-        const on = getOn(stateUpdater, element.id, messages);
-        const send = getSend(messages);
+        const on = getOn(stateUpdater, element.id, messagesList);
+        const send = getSend(messagesList);
         cb({ on, send, stateUpdater, ref });
       } else {
         cb();
@@ -232,14 +234,13 @@ const getSend = (messages: { event: string; callback: Function }[]) => {
   };
 };
 
-const setRef = (templater: Templater) => {
-  templater._refs = [];
+const getRef = (refs: Element[]) => {
   const funcElementMap = new Map<Function, Element>();
   return () => {
     const func = (el?: Element) => {
       if (el) {
         funcElementMap.set(func, el);
-        templater._refs.push(el);
+        refs.push(el);
         return el;
       } else {
         return funcElementMap.get(func) || null;
@@ -257,6 +258,7 @@ type ListenerList = ({
 } | null)[];
 
 const getStateUpdater = () => {
+  const messagesList: MessagesList = [];
   const functionSubscribersMap: FuncSubscriberMap = new Map();
   const listenerList: ListenerList = [];
   const stateUpdater = (callback: Function) => {
@@ -272,6 +274,8 @@ const getStateUpdater = () => {
               // When an element is replaced, we need to reapply the event listener
               needListeners.push(listenerIndex);
             } else if (d.diff?.action === "removeElement" && listenerIndex) {
+              console.log("Removing an element!");
+              console.log(d);
             }
           },
         });
@@ -306,7 +310,7 @@ const getStateUpdater = () => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList, stateUpdater };
+  return { functionSubscribersMap, listenerList, stateUpdater, messagesList };
 };
 
 export class ComponentBase {

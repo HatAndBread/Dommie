@@ -115,13 +115,13 @@ const t: Component = (h) => {
       },
       () => {
         a({ href: "https://www.google.com" }, () => {
-          h.text("I am a link");
+          text("I am a link");
         });
         div({ subscribe: inputValueUpdated }, () => {
           text(inputValue);
         });
         div(() => {
-          h.text("This is one instance of a child");
+          text("This is one instance of a child");
           child(h);
         });
         div(() => {

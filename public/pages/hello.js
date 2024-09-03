@@ -2,12 +2,13 @@
 var child = (h) => {
   let inputValue = "I am a text input";
   let someOtherValue = 0;
-  return h.component(({ on, send, stateUpdater }) => {
+  return h.component(({ on, send, stateUpdater, ref }) => {
     const updateSomeOtherValue = on("updateValue", (v) => someOtherValue = v);
     const updateInputValue = stateUpdater((e) => {
       inputValue = e.target.value;
       send("inputValueChanged", inputValue);
     });
+    const inputRef = ref();
     h.div(() => {
       h.div(() => {
         h.text("I am the CHILD \uD83D\uDC76");
@@ -21,7 +22,8 @@ var child = (h) => {
           type: "text",
           value: () => inputValue,
           subscribe: updateInputValue,
-          input: updateInputValue
+          input: updateInputValue,
+          ref: inputRef
         });
       });
     });
@@ -1890,9 +1892,9 @@ function templateBuilder(root) {
       $(elementName, optionsOrCb, cb);
     };
   }
-  const ref = setRef(allElements);
-  const { functionSubscribersMap, listenerList, stateUpdater } = getStateUpdater();
-  const messages = [];
+  const refs = [];
+  const ref = getRef(refs);
+  const { functionSubscribersMap, listenerList, stateUpdater, messagesList } = getStateUpdater();
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -1957,8 +1959,8 @@ function templateBuilder(root) {
     if (typeof cb === "function") {
       nesting.push(element);
       if (tag === "component") {
-        const on = getOn(stateUpdater, element.id, messages);
-        const send = getSend(messages);
+        const on = getOn(stateUpdater, element.id, messagesList);
+        const send = getSend(messagesList);
         cb({ on, send, stateUpdater, ref });
       } else {
         cb();
@@ -2065,14 +2067,13 @@ var getSend = (messages) => {
     });
   };
 };
-var setRef = (templater) => {
-  templater._refs = [];
+var getRef = (refs) => {
   const funcElementMap = new Map;
   return () => {
     const func = (el) => {
       if (el) {
         funcElementMap.set(func, el);
-        templater._refs.push(el);
+        refs.push(el);
         return el;
       } else {
         return funcElementMap.get(func) || null;
@@ -2082,6 +2083,7 @@ var setRef = (templater) => {
   };
 };
 var getStateUpdater = () => {
+  const messagesList = [];
   const functionSubscribersMap = new Map;
   const listenerList = [];
   const stateUpdater = (callback) => {
@@ -2094,6 +2096,8 @@ var getStateUpdater = () => {
             if (d.diff?.action === "addElement" && listenerIndex) {
               needListeners.push(listenerIndex);
             } else if (d.diff?.action === "removeElement" && listenerIndex) {
+              console.log("Removing an element!");
+              console.log(d);
             }
           }
         });
@@ -2122,7 +2126,7 @@ var getStateUpdater = () => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList, stateUpdater };
+  return { functionSubscribersMap, listenerList, stateUpdater, messagesList };
 };
 
 // lib/app.ts
@@ -2238,13 +2242,13 @@ var t = (h) => {
       style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] }
     }, () => {
       a({ href: "https://www.google.com" }, () => {
-        h.text("I am a link");
+        text("I am a link");
       });
       div({ subscribe: inputValueUpdated }, () => {
         text(inputValue);
       });
       div(() => {
-        h.text("This is one instance of a child");
+        text("This is one instance of a child");
         child(h);
       });
       div(() => {
