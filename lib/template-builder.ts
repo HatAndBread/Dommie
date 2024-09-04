@@ -42,8 +42,7 @@ export function templateBuilder(root: Element) {
 
   const refs: Element[] = [];
   const ref = getRef(refs);
-  const { functionSubscribersMap, functionList, listenerList, stateUpdater, messagesList } =
-    getStateUpdater();
+  const { functionSubscribersMap, listenerList, stateUpdater, messagesList } = getStateUpdater();
   const nesting = [root];
   function $(tag: string, optionsOrCb: any, cb?: Function, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -87,7 +86,6 @@ export function templateBuilder(root: Element) {
         cb,
         shouldAppend,
         functionSubscribersMap,
-        functionList,
         listenerList,
         $,
       };
@@ -160,13 +158,7 @@ const handleSubscription = (context: Context) => {
       });
     }
     funcs.forEach((f) => {
-      let indexOfFunction = context.functionList.indexOf(f);
-      if (indexOfFunction === -1) {
-        context.functionList.push(f);
-        indexOfFunction = context.functionList.length - 1;
-      }
       const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
-      console.log(indexOfFunction);
       uniqueSubId++;
       context.element.dataset.uniqueSubId = `${uniqueSubId}`;
       if (context.functionSubscribersMap.get(f)) {
@@ -271,7 +263,6 @@ type ListenerList = ({
 const getStateUpdater = () => {
   const messagesList: MessagesList = [];
   const functionSubscribersMap: FuncSubscriberMap = new Map();
-  const functionList: Function[] = [];
   const listenerList: ListenerList = [];
   const stateUpdater = (callback: Function) => {
     const getFuncWrapper = () => {
@@ -353,7 +344,7 @@ const getStateUpdater = () => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, functionList, listenerList, stateUpdater, messagesList };
+  return { functionSubscribersMap, listenerList, stateUpdater, messagesList };
 };
 
 export class ComponentBase {
