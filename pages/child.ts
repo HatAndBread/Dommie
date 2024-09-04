@@ -1,8 +1,8 @@
 import type { Component } from "../lib/app";
 
-const child: Component = (h) => {
+const child: Component = (h, initialSomeOtherValue: number) => {
   let inputValue = "I am a text input";
-  let someOtherValue = 0;
+  let someOtherValue = initialSomeOtherValue;
 
   return h.component(({ on, send, stateUpdater, ref }) => {
     const updateSomeOtherValue = on("updateValue", (v: number) => (someOtherValue = v));
@@ -12,16 +12,17 @@ const child: Component = (h) => {
     });
     const inputRef = ref();
 
-    h.div(() => {
-      h.div(() => {
-        h.text("I am the CHILD 👶");
-        h.h1({ subscribe: updateInputValue }, () => {
-          h.text(inputValue);
+    const { div, text, h1, input } = h;
+    div(() => {
+      div(() => {
+        text("I am the CHILD 👶");
+        h1({ subscribe: updateInputValue }, () => {
+          text(inputValue);
         });
-        h.h1({ subscribe: updateSomeOtherValue }, () => {
-          h.text(someOtherValue);
+        h1({ subscribe: updateSomeOtherValue }, () => {
+          text(someOtherValue);
         });
-        h.input({
+        input({
           type: "text",
           value: () => inputValue,
           subscribe: updateInputValue,

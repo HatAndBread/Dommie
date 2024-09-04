@@ -1,7 +1,7 @@
 // pages/child.ts
-var child = (h) => {
+var child = (h, initialSomeOtherValue) => {
   let inputValue = "I am a text input";
-  let someOtherValue = 0;
+  let someOtherValue = initialSomeOtherValue;
   return h.component(({ on, send, stateUpdater, ref }) => {
     const updateSomeOtherValue = on("updateValue", (v) => someOtherValue = v);
     const updateInputValue = stateUpdater((e) => {
@@ -9,16 +9,17 @@ var child = (h) => {
       send("inputValueChanged", inputValue);
     });
     const inputRef = ref();
-    h.div(() => {
-      h.div(() => {
-        h.text("I am the CHILD \uD83D\uDC76");
-        h.h1({ subscribe: updateInputValue }, () => {
-          h.text(inputValue);
+    const { div, text, h1, input } = h;
+    div(() => {
+      div(() => {
+        text("I am the CHILD \uD83D\uDC76");
+        h1({ subscribe: updateInputValue }, () => {
+          text(inputValue);
         });
-        h.h1({ subscribe: updateSomeOtherValue }, () => {
-          h.text(someOtherValue);
+        h1({ subscribe: updateSomeOtherValue }, () => {
+          text(someOtherValue);
         });
-        h.input({
+        input({
           type: "text",
           value: () => inputValue,
           subscribe: updateInputValue,
@@ -1894,7 +1895,7 @@ function templateBuilder(root) {
   }
   const refs = [];
   const ref = getRef(refs);
-  const { functionSubscribersMap, listenerList, stateUpdater, messagesList } = getStateUpdater();
+  const { functionSubscribersMap, functionList, listenerList, stateUpdater, messagesList } = getStateUpdater();
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -1938,6 +1939,7 @@ function templateBuilder(root) {
         cb,
         shouldAppend,
         functionSubscribersMap,
+        functionList,
         listenerList,
         $
       };
@@ -1987,6 +1989,7 @@ var handleStyle = (context) => {
   }).join(" ");
   context.element.setAttribute(context.key, style);
 };
+var uniqueSubId = 0;
 var handleSubscription = (context) => {
   const { shouldAppend, value } = context;
   if (shouldAppend) {
@@ -2003,7 +2006,15 @@ var handleSubscription = (context) => {
       });
     }
     funcs.forEach((f) => {
+      let indexOfFunction = context.functionList.indexOf(f);
+      if (indexOfFunction === -1) {
+        context.functionList.push(f);
+        indexOfFunction = context.functionList.length - 1;
+      }
       const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
+      console.log(indexOfFunction);
+      uniqueSubId++;
+      context.element.dataset.uniqueSubId = `${uniqueSubId}`;
       if (context.functionSubscribersMap.get(f)) {
         context.functionSubscribersMap.get(f)?.push([context.element, regenerator]);
       } else {
@@ -2085,6 +2096,7 @@ var getRef = (refs) => {
 var getStateUpdater = () => {
   const messagesList = [];
   const functionSubscribersMap = new Map;
+  const functionList = [];
   const listenerList = [];
   const stateUpdater = (callback) => {
     const getFuncWrapper = () => {
@@ -2092,12 +2104,27 @@ var getStateUpdater = () => {
         const needListeners = [];
         const domDiffer = new DiffDOM({
           postVirtualDiffApply: function(d) {
-            const listenerIndex = d.diff?.element?.attributes?.["data-listener-index"];
-            if (d.diff?.action === "addElement" && listenerIndex) {
-              needListeners.push(listenerIndex);
-            } else if (d.diff?.action === "removeElement" && listenerIndex) {
-              console.log("Removing an element!");
-              console.log(d);
+            if (d.diff?.action === "addElement") {
+              const findListenersIndex = (el) => {
+                const index = el?.attributes?.["data-listener-index"];
+                if (index) {
+                  needListeners.push(index);
+                }
+                el?.childNodes?.forEach((child2) => {
+                  findListenersIndex(child2);
+                });
+              };
+              findListenersIndex(d.diff?.element);
+            } else if (d.diff?.action === "removeElement") {
+              const elId = d.node?.attributes?.id;
+              const isComponent = d.node?.nodeName === "COMPONENT";
+              if (elId && isComponent) {
+                messagesList.forEach((message, i) => {
+                  if (message.componentId === elId) {
+                    messagesList.splice(i, 1);
+                  }
+                });
+              }
             }
           }
         });
@@ -2105,14 +2132,25 @@ var getStateUpdater = () => {
         const subscribers = functionSubscribersMap.get(funcWrapper);
         subscribers?.forEach((subscriber) => {
           const newEl = subscriber[1]();
-          const oldEl = subscriber[0];
+          let oldEl = subscriber[0];
           const diff = domDiffer.diff(oldEl, newEl);
-          domDiffer.apply(oldEl, diff);
+          if (!document.body.contains(oldEl)) {
+            const uniqueId = oldEl.dataset.uniqueSubId;
+            const result = document.body.querySelector(`[data-unique-sub-id="${uniqueId}"]`);
+            if (result) {
+              const diff2 = domDiffer.diff(result, newEl);
+              domDiffer.apply(result, diff2);
+              subscriber[0] = result;
+              oldEl = result;
+            }
+          } else {
+            domDiffer.apply(oldEl, diff);
+          }
           newEl.remove();
           needListeners.forEach((index) => {
             const listener = listenerList[parseInt(index)];
             if (listener) {
-              const elToApplyListenerTo = oldEl.querySelector("[data-listener-index='" + index + "']");
+              let elToApplyListenerTo = oldEl.querySelector("[data-listener-index='" + index + "']");
               if (elToApplyListenerTo) {
                 elToApplyListenerTo.addEventListener(listener.eventType, listener.callback);
               }
@@ -2126,7 +2164,7 @@ var getStateUpdater = () => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList, stateUpdater, messagesList };
+  return { functionSubscribersMap, functionList, listenerList, stateUpdater, messagesList };
 };
 
 // lib/app.ts
@@ -2249,11 +2287,11 @@ var t = (h) => {
       });
       div(() => {
         text("This is one instance of a child");
-        child(h);
+        child(h, value);
       });
       div(() => {
         text("This is another instance of a child");
-        child(h);
+        child(h, value);
       });
       div({ subscribe: updateWord }, () => {
         text(word);
@@ -2270,6 +2308,11 @@ var t = (h) => {
           button({ click: toggleBool, ref: r }, () => {
             text("someBool is false");
           });
+        }
+      });
+      div({ subscribe: toggleBool }, () => {
+        if (someBool) {
+          child(h, value);
         }
       });
       text("I am some text");

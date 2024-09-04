@@ -122,11 +122,11 @@ const t: Component = (h) => {
         });
         div(() => {
           text("This is one instance of a child");
-          child(h);
+          child(h, value);
         });
         div(() => {
           text("This is another instance of a child");
-          child(h);
+          child(h, value);
         });
         div({ subscribe: updateWord }, () => {
           text(word);
@@ -143,6 +143,11 @@ const t: Component = (h) => {
             button({ click: toggleBool, ref: r }, () => {
               text("someBool is false");
             });
+          }
+        });
+        div({ subscribe: toggleBool }, () => {
+          if (someBool) {
+            child(h, value);
           }
         });
         text("I am some text");

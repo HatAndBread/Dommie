@@ -1,7 +1,7 @@
 // pages/child.ts
-var child = (h) => {
+var child = (h, initialSomeOtherValue) => {
   let inputValue = "I am a text input";
-  let someOtherValue = 0;
+  let someOtherValue = initialSomeOtherValue;
   return h.component(({ on, send, stateUpdater, ref }) => {
     const updateSomeOtherValue = on("updateValue", (v) => someOtherValue = v);
     const updateInputValue = stateUpdater((e) => {
@@ -9,16 +9,17 @@ var child = (h) => {
       send("inputValueChanged", inputValue);
     });
     const inputRef = ref();
-    h.div(() => {
-      h.div(() => {
-        h.text("I am the CHILD \uD83D\uDC76");
-        h.h1({ subscribe: updateInputValue }, () => {
-          h.text(inputValue);
+    const { div, text, h1, input } = h;
+    div(() => {
+      div(() => {
+        text("I am the CHILD \uD83D\uDC76");
+        h1({ subscribe: updateInputValue }, () => {
+          text(inputValue);
         });
-        h.h1({ subscribe: updateSomeOtherValue }, () => {
-          h.text(someOtherValue);
+        h1({ subscribe: updateSomeOtherValue }, () => {
+          text(someOtherValue);
         });
-        h.input({
+        input({
           type: "text",
           value: () => inputValue,
           subscribe: updateInputValue,
