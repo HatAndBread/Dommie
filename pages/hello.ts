@@ -179,16 +179,12 @@ const t: Component = (h) => {
           },
           () => {
             stuff.forEach((thing) => {
-              li(
-                {
-                  style: {
-                    backgroundColor: colors[Math.floor(Math.random() * colors.length)],
-                  },
+              li({
+                style: {
+                  backgroundColor: colors[Math.floor(Math.random() * colors.length)],
                 },
-                () => {
-                  h.text(`I am a list item with value: ${thing}`);
-                },
-              );
+                text: () => `I am a list item with value: ${thing}`,
+              });
             });
           },
         );

@@ -1945,8 +1945,7 @@ function templateBuilder(root) {
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
         handleStyle(context);
       } else if (key === "text") {
-        console.log(optionsOrCb, key);
-        element.appendChild(document.createTextNode(optionsOrCb[key]));
+        element.appendChild(document.createTextNode(typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key]));
       } else if (key === "subscribe") {
         handleSubscription(context);
       } else if (allEventListeners.includes(key)) {
@@ -2337,9 +2336,8 @@ var t = (h) => {
           li({
             style: {
               backgroundColor: colors[Math.floor(Math.random() * colors.length)]
-            }
-          }, () => {
-            h.text(`I am a list item with value: ${thing2}`);
+            },
+            text: () => `I am a list item with value: ${thing2}`
           });
         });
       });

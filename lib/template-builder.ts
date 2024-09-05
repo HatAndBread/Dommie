@@ -92,8 +92,11 @@ export function templateBuilder(root: Element) {
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
         handleStyle(context);
       } else if (key === "text") {
-        console.log(optionsOrCb, key);
-        element.appendChild(document.createTextNode(optionsOrCb[key]));
+        element.appendChild(
+          document.createTextNode(
+            typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key],
+          ),
+        );
       } else if (key === "subscribe") {
         handleSubscription(context);
       } else if (allEventListeners.includes(key)) {
