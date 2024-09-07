@@ -4,6 +4,9 @@ import { toSnakeCase } from "./strings.ts";
 import { allHtmlElements } from "./html-elements.ts";
 import { DiffDOM } from "diff-dom";
 
+const COMPONENT_TAG = "component";
+const COMPONENT_ID_PREFIX = "ghost-component-";
+
 type Context = {
   element: HTMLElement;
   parent: HTMLElement;
@@ -65,18 +68,18 @@ export function templateBuilder(root: HTMLElement) {
       optionsOrCb = {};
     }
     const element = document.createElement(tag);
-    if (tag === "component") {
+    if (tag === COMPONENT_TAG) {
       optionsOrCb = { style: "display: contents;" };
       if (shouldAppend) {
         componentId++;
-        const id = `ghost-component-${componentId}`;
+        const id = `${COMPONENT_ID_PREFIX}${componentId}`;
         element.id = id;
       }
     }
     const handleAppend = () => {
       if (!shouldAppend) return;
       parent.appendChild(element);
-      if (tag === "component") {
+      if (tag === COMPONENT_TAG) {
         if (afterMountCallbacks[element.id]) {
           setTimeout(afterMountCallbacks[element.id]);
         }
@@ -120,7 +123,7 @@ export function templateBuilder(root: HTMLElement) {
     }
     if (typeof cb === "function") {
       nesting.push(element);
-      if (tag === "component") {
+      if (tag === COMPONENT_TAG) {
         const on = getOn(stateUpdater, element.id, messagesList);
         const send = getSend(messagesList);
         const afterMounted = (cb: () => void) => {
@@ -203,7 +206,6 @@ const handleEventListeners = (context: Context) => {
     throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
   }
   const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
-  // @ts-ignore
   element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
   if (funcIndex === -1) {
     listenerList.push({
@@ -284,41 +286,13 @@ const getStateUpdater = () => {
       const funcWrapper = async (e?: Event, args?: any[]) => {
         if (!args) args = [];
         // This function wraps all subscriber functions
-        const afterDestroys: Function[] = [];
 
         // Create a new instance of the diffDOM library
-        const needListeners: string[] = [];
-        const domDiffer = new DiffDOM({
-          postVirtualDiffApply: function (d) {
-            if (d.diff?.action === "addElement") {
-              const findListenersIndex = (el: any) => {
-                const index = el?.attributes?.["data-listener-index"];
-                if (index) {
-                  needListeners.push(index);
-                }
-                el?.childNodes?.forEach((child: any) => {
-                  findListenersIndex(child);
-                });
-              };
-              findListenersIndex(d.diff?.element);
-            } else if (d.diff?.action === "removeElement") {
-              const isComponent = d.node?.nodeName === "COMPONENT";
-              const elId = d.node?.attributes?.id;
-              if (afterDestroyCallbacks[elId]) {
-                afterDestroys.push(afterDestroyCallbacks[elId]);
-              }
-              // Clean up after component is removed from the dom
-              if (elId && isComponent) {
-                // remove all messages for this component
-                messagesList.forEach((message, i) => {
-                  if (message.componentId === elId) {
-                    messagesList.splice(i, 1);
-                  }
-                });
-              }
-            }
-          },
-        });
+        const { config, afterDestroys, needListeners } = getDomDiffConfig(
+          afterDestroyCallbacks,
+          messagesList,
+        );
+        const domDiffer = new DiffDOM(config);
 
         // ** This is the function that will be called when the state is updated
         await callback(e, ...args);
@@ -375,6 +349,49 @@ const getStateUpdater = () => {
     afterMountCallbacks,
     afterDestroyCallbacks,
   };
+};
+
+const getDomDiffConfig = (
+  afterDestroyCallbacks: { [key: string]: Function },
+  messagesList: MessagesList,
+) => {
+  const needListeners: string[] = []; // Elements that need event listeners re-applied
+  const afterDestroys: Function[] = []; // After Destroy callbacks to be executed after the diff is applied
+
+  const config = {
+    postVirtualDiffApply: function (d: any) {
+      if (d.diff?.action === "addElement") {
+        // Find all elements that need event listeners re-applied
+        const findListenersIndex = (el: any) => {
+          const index = el?.attributes?.["data-listener-index"];
+          if (index) {
+            needListeners.push(index);
+          }
+          el?.childNodes?.forEach((child: any) => {
+            findListenersIndex(child);
+          });
+        };
+        findListenersIndex(d.diff?.element);
+      } else if (d.diff?.action === "removeElement") {
+        const isComponent = d.node?.nodeName === COMPONENT_TAG.toUpperCase();
+        const elId = d.node?.attributes?.id;
+        // Get After Destroy callbacks for any components that are removed
+        if (afterDestroyCallbacks[elId]) {
+          afterDestroys.push(afterDestroyCallbacks[elId]);
+        }
+        // Clean up after component is removed from the dom
+        if (elId && isComponent) {
+          // remove all messages for this component
+          messagesList.forEach((message, i) => {
+            if (message.componentId === elId) {
+              messagesList.splice(i, 1);
+            }
+          });
+        }
+      }
+    },
+  };
+  return { config, afterDestroys, needListeners };
 };
 
 export class ComponentBase {
