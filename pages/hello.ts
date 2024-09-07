@@ -107,7 +107,7 @@ const t: Component = (h) => {
     });
 
     // template
-    const { div, button, a, text, br, ul, li, comment } = h;
+    const { div, img, button, a, text, br, ul, li, comment } = h;
     div(
       {
         style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
@@ -115,6 +115,13 @@ const t: Component = (h) => {
       () => {
         a({ href: "https://www.google.com" }, () => {
           text("I am a link");
+        });
+        div({ subscribe: inputValueUpdated }, () => {
+          img({
+            src: "https://picsum.photos/200/200",
+            width: 200,
+            height: 200,
+          });
         });
         div({ subscribe: inputValueUpdated }, () => {
           text(inputValue);
