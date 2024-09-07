@@ -1,16 +1,23 @@
 import { readdir } from "node:fs/promises";
 
 const PAGES_DIR = "./pages";
+const LIB_DIR = "./lib";
 const CONTROLLER_DIR = "./controllers";
 
 const pagesFiles = await readdir(PAGES_DIR);
+const libFiles = await readdir(LIB_DIR);
+
 const controllerPaths = await readdir(CONTROLLER_DIR, { recursive: true });
 const controllerFiles = controllerPaths.filter((f) => f.endsWith("controller.ts"));
 
 const pagesToBundle = pagesFiles.map((f) => PAGES_DIR + "/" + f);
+const libToBundle = libFiles.map((f) => LIB_DIR + "/" + f);
+const controllers = controllerPaths.map((f) => CONTROLLER_DIR + "/" + f);
 
+console.log(pagesFiles);
+console.log(controllers);
 const x = await Bun.build({
-  entrypoints: [...pagesToBundle],
+  entrypoints: [...libToBundle, ...pagesToBundle],
   outdir: "./public",
 });
 console.log("Build result: ");

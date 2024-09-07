@@ -75,7 +75,7 @@ const t: Component = (h) => {
 
   let inputValue = "I am not a text input";
 
-  return h.component(({ on, send, stateUpdater }) => {
+  return h.component(({ on, send, stateUpdater, afterMounted }) => {
     const updateWidth = stateUpdater(() => (width += 1));
     const updateWord = stateUpdater(() => {
       const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
@@ -90,15 +90,20 @@ const t: Component = (h) => {
     const addToStuff = stateUpdater((e: Event) => {
       stuff.push((stuff[stuff.length - 1] || 0) + 11);
     });
+    console.log("FUCK!");
     const toggleFetchingCatData = stateUpdater(() => {
       fetchingCatData = !fetchingCatData;
     });
-    const fetchCatData = stateUpdater(async () => {
-      toggleFetchingCatData();
+    const fetchCatData = stateUpdater(async (e: Event) => {
+      toggleFetchingCatData(e);
       const res = await fetch("https://meowfacts.herokuapp.com/");
       const data = await res.json();
       catData = data.data[0];
-      toggleFetchingCatData();
+      toggleFetchingCatData(e);
+    });
+    afterMounted(() => {
+      fetchCatData();
+      console.log("The main thing is mounted!");
     });
 
     const inputValueUpdated = on("inputValueChanged", (v: string) => {
