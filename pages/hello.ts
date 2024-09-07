@@ -1,9 +1,8 @@
-import type { Template } from "../index.ts";
-import { templater2 } from "../lib/templater.ts";
-import type { Templater } from "../lib/types.ts";
-import type { AllElements } from "../lib/types.ts";
+import app from "../lib/app.ts";
+import type { Component } from "../lib/app.ts";
+import { child } from "./child.ts";
 
-const t: AppInput = (h) => {
+const t: Component = (h) => {
   let width = 100;
   const stuff: number[] = [];
   const colors = [
@@ -60,136 +59,152 @@ const t: AppInput = (h) => {
     "black",
   ];
 
-  const ref = h.ref();
   let word = "🥓";
-  const updateWord = h.stateUpdater(() => {
-    const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
-    word = words[Math.floor(Math.random() * words.length)];
-    updateWidth();
-  });
-  const updateWidth = h.stateUpdater(() => (width += 1));
-  let value = 0;
-  const updateValue = h.stateUpdater((_: Event, n: number) => {
-    value += n;
-  });
 
-  const addToStuff = h.stateUpdater((e: Event) => {
-    console.log(e);
-    stuff.push((stuff[stuff.length - 1] || 0) + 11);
-  });
+  let value = 0;
+
+  let catData = "";
+  let fetchingCatData = false;
 
   let someBool = true;
-  const toggleBool = h.stateUpdater(() => {
-    someBool = !someBool;
-  });
 
   const thing = (text: string) =>
     h.div(() => {
       h.text(`I am ${text}`);
     });
 
-  return h.div({ style: "background-color: red;" }, () => {
-    h.a({ href: "https://www.google.com" }, () => {
-      h.text("I am a link");
+  let inputValue = "I am not a text input";
+
+  return h.component(({ on, send, stateUpdater }) => {
+    const updateWidth = stateUpdater(() => (width += 1));
+    const updateWord = stateUpdater(() => {
+      const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
+      word = words[Math.floor(Math.random() * words.length)];
+      updateWidth();
     });
-    h.div({ subscribe: [updateWord] }, () => {
-      h.text(word);
+    const updateValue = stateUpdater((_: Event, n: number) => {
+      value += n;
+      send("updateValue", value);
     });
-    h.button({ click: updateWord }, () => {
-      h.text("Change word");
+    const toggleBool = stateUpdater(() => (someBool = !someBool));
+    const addToStuff = stateUpdater((e: Event) => {
+      stuff.push((stuff[stuff.length - 1] || 0) + 11);
     });
-    h.div({ subscribe: [toggleBool] }, () => {
-      if (!someBool) {
-        h.button({ click: toggleBool, ref: ref }, () => {
-          h.text("someBool is false");
-        });
-      }
+    const toggleFetchingCatData = stateUpdater(() => {
+      fetchingCatData = !fetchingCatData;
     });
-    h.text("I am some text");
-    h.br();
-    h.text("I am some more text");
-    h.div({ subscribe: [toggleBool] }, () => {
-      if (someBool) {
-        h.button({ click: toggleBool }, () => {
-          h.text("someBool is true");
-        });
-      }
+    const fetchCatData = stateUpdater(async () => {
+      toggleFetchingCatData();
+      const res = await fetch("https://meowfacts.herokuapp.com/");
+      const data = await res.json();
+      catData = data.data[0];
+      toggleFetchingCatData();
     });
-    h.div({ subscribe: [updateValue] }, () => {
-      h.text(value);
+
+    const inputValueUpdated = on("inputValueChanged", (v: string) => {
+      inputValue = v;
     });
-    h.button({ click: [updateValue, [1]] }, () => {
-      h.text("Increment");
-    });
-    h.button({ click: [updateValue, [-1]] }, () => {
-      h.text("Decrement");
-    });
-    thing("baka");
-    h.button({ click: addToStuff, subscribe: [addToStuff] }, () => {
-      h.text("Add to stuff" + stuff.length);
-    });
-    thing("Aho");
-    h.ul(
+
+    // template
+    const { div, button, a, text, br, ul, li, comment } = h;
+    div(
       {
-        subscribe: [addToStuff],
-        style: {
-          backgroundColor: () => colors[Math.floor(Math.random() * colors.length)],
-        },
+        style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
       },
       () => {
-        stuff.forEach((thing) => {
-          h.li(
-            {
-              style: {
-                backgroundColor: colors[Math.floor(Math.random() * colors.length)],
-              },
-            },
-            () => {
-              h.text(`I am a list item with value: ${thing}`);
-            },
-          );
+        a({ href: "https://www.google.com" }, () => {
+          text("I am a link");
         });
+        div({ subscribe: inputValueUpdated }, () => {
+          text(inputValue);
+        });
+        div(() => {
+          text("This is one instance of a child");
+          child(h, value);
+        });
+        div(() => {
+          text("This is another instance of a child");
+          child(h, value);
+        });
+        div({ subscribe: updateWord }, () => {
+          text(word);
+        });
+        button({ click: updateWord, text: "Change word" });
+        div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
+          text(fetchingCatData ? "Fetching cat data..." : catData);
+        });
+        button({ click: fetchCatData }, () => {
+          text("Fetch cat data");
+        });
+        div({ subscribe: [toggleBool] }, () => {
+          if (!someBool) {
+            button({ click: toggleBool }, () => {
+              text("someBool is false");
+            });
+          }
+        });
+        div({ subscribe: toggleBool }, () => {
+          if (someBool) {
+            child(h, value);
+          }
+        });
+        text("I am some text");
+        br();
+        text("I am some more text");
+        div({ subscribe: toggleBool }, () => {
+          if (someBool) {
+            button({ click: toggleBool }, () => {
+              text("someBool is true");
+            });
+          }
+        });
+        div({ subscribe: updateValue }, () => {
+          text(value);
+        });
+        button({ click: [updateValue, [1]], text: "Increment" });
+        button({ click: [updateValue, [-1]], text: "Decrement" });
+        thing("baka");
+        button({ click: addToStuff, subscribe: addToStuff }, () => {
+          text("Add to stuff" + stuff.length);
+        });
+        thing("Aho");
+        ul(
+          {
+            style: {
+              backgroundColor: () => colors[Math.floor(Math.random() * colors.length)],
+            },
+            subscribe: addToStuff,
+          },
+          () => {
+            stuff.forEach((thing) => {
+              li({
+                style: {
+                  backgroundColor: colors[Math.floor(Math.random() * colors.length)],
+                },
+                text: () => `I am a list item with value: ${thing}`,
+              });
+            });
+          },
+        );
+        div(
+          {
+            style: {
+              backgroundColor: "pink",
+              width: () => `${width}px`,
+              height: "100px",
+            },
+            class: () => `${width}`,
+            subscribe: updateWidth,
+            mousemove: updateWidth,
+          },
+          () => {
+            text("mouse over me");
+          },
+        );
+        comment("This is a comment!");
       },
     );
-    h.div(
-      {
-        subscribe: [updateWidth],
-        style: {
-          backgroundColor: "pink",
-          width: () => `${width}px`,
-          height: "100px",
-        },
-        class: () => `${width}`,
-        mousemove: updateWidth,
-      },
-      () => {
-        h.text("mouse over me");
-      },
-    );
-    h.comment("This is a comment!");
   });
 };
 
-// LIB
-const toPascalCase = (str: string) =>
-  (str.match(/[a-zA-Z0-9]+/g) || [])
-    .map((w) => `${w.charAt(0).toUpperCase()}${w.slice(1)}`)
-    .join("");
-const camelize = (str: string) => {
-  const pascaled = toPascalCase(str);
-  return pascaled.charAt(0).toLowerCase() + pascaled.slice(1);
-};
-
-export type AppInput = (h: Templater) => Templater;
-const app = (i: AppInput, id: string) => {
-  const el = document.getElementById(id);
-  if (!el) {
-    console.error("No element found with id: " + id);
-    return;
-  }
-  const x = templater2(el);
-  i(x);
-  console.log(x);
-};
-
-app(t, "app");
+app(t, "#app");

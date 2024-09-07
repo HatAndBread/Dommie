@@ -1,11 +1,19 @@
-export interface Templater extends AllElements {
-  ref: () => () => Element | null;
-  stateUpdater: (callback: Function, args?: any[]) => Function;
+import { ComponentBase } from "./template-builder";
+
+export interface ComponentBaseInput {
+  afterDestroyed: (callback: Function) => void;
+  afterMounted: (callback: Function) => void;
+  on: (event: string, callback: Function) => Function;
+  ref: () => () => HTMLElement | null;
+  send: (event: string, data: any) => void;
+  stateUpdater: (callback: Function) => (e: Event, ...args: any[]) => Promise<void>;
 }
-type ElementInput = (optionsOrCb?: any, cb?: Function) => Templater;
+export interface Templater extends AllElements {
+  component: (callback: (i: ComponentBaseInput) => any) => ComponentBase;
+}
+type ElementInput = (...args: any) => Templater;
 
 export interface AllElements {
-  _refs: Element[];
   a: ElementInput;
   abbr: ElementInput;
   acronym: ElementInput;

@@ -1,3 +1,46 @@
+// pages/child.ts
+var child = (h, initialSomeOtherValue) => {
+  let inputValue = "I am a text input";
+  let someOtherValue = initialSomeOtherValue;
+  return h.component(({ on, send, stateUpdater, afterMounted, afterDestroyed, ref }) => {
+    const updateSomeOtherValue = on("updateValue", (v) => someOtherValue = v);
+    const updateInputValue = stateUpdater((e) => {
+      inputValue = e.target.value;
+      send("inputValueChanged", inputValue);
+    });
+    const inputRef = ref();
+    const otherRef = ref();
+    afterMounted(() => {
+      console.log("I WAS MOUNTED");
+      inputRef()?.focus();
+      console.log(inputRef());
+      console.log(otherRef());
+    });
+    afterDestroyed(() => {
+      console.log("I WAS DESTROYED!");
+      console.log(inputRef());
+    });
+    const { div, text, h1, input } = h;
+    div(() => {
+      div(() => {
+        text("I am the CHILD \uD83D\uDC76");
+        h1({ subscribe: updateInputValue }, () => {
+          text(inputValue);
+        });
+        h1({ subscribe: updateSomeOtherValue, ref: otherRef }, () => {
+          text(someOtherValue);
+        });
+        input({
+          ref: inputRef,
+          type: "text",
+          value: () => inputValue,
+          subscribe: updateInputValue,
+          input: updateInputValue
+        });
+      });
+    });
+  });
+};
 // lib/all-event-listeners.ts
 var allEventListeners = [
   "abort",
@@ -119,6 +162,7 @@ var allHtmlElements = [
   "col",
   "colgroup",
   "comment",
+  "component",
   "custom",
   "data",
   "datalist",
@@ -143,6 +187,11 @@ var allHtmlElements = [
   "frame",
   "frameset",
   "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
   "head",
   "header",
   "hgroup",
@@ -1847,25 +1896,33 @@ var TraceLogger = function() {
   return TraceLogger2;
 }();
 
-// lib/templater.ts
-function templater2(root) {
+// lib/template-builder.ts
+function templateBuilder(root) {
   const allElements = {};
   for (const elementName of allHtmlElements) {
-    allElements[elementName] = (optionsOrCb = {}, cb) => $(elementName, optionsOrCb, cb);
+    allElements[elementName] = (optionsOrCb, cb) => {
+      $(elementName, optionsOrCb, cb);
+    };
   }
-  setRef(allElements);
-  const { functionSubscribersMap, listenerList } = setStateUpdater(allElements);
+  const {
+    functionSubscribersMap,
+    listenerList,
+    stateUpdater,
+    messagesList,
+    afterMountCallbacks,
+    afterDestroyCallbacks
+  } = getStateUpdater();
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
     if (tag === "text") {
-      const node = document.createTextNode(optionsOrCb);
+      const textNode = document.createTextNode(optionsOrCb);
       if (shouldAppend)
-        parent.appendChild(node);
-      return node;
+        parent.appendChild(textNode);
+      return textNode;
     }
     if (tag === "comment") {
-      const comment = document.createComment("My comments");
+      const comment = document.createComment(optionsOrCb);
       if (shouldAppend)
         parent.appendChild(comment);
       return comment;
@@ -1877,123 +1934,254 @@ function templater2(root) {
       optionsOrCb = {};
     }
     const element = document.createElement(tag);
+    if (tag === "component") {
+      optionsOrCb = { style: "display: contents;" };
+      if (shouldAppend) {
+        componentId++;
+        const id = `ghost-component-${componentId}`;
+        element.id = id;
+      }
+    }
+    const handleAppend = () => {
+      if (!shouldAppend)
+        return;
+      parent.appendChild(element);
+      if (tag === "component") {
+        if (afterMountCallbacks[element.id]) {
+          setTimeout(afterMountCallbacks[element.id]);
+        }
+      }
+    };
+    if (!optionsOrCb)
+      optionsOrCb = {};
     for (let key in optionsOrCb) {
+      const context = {
+        element,
+        parent,
+        tag,
+        key,
+        value: optionsOrCb[key],
+        optionsOrCb,
+        cb,
+        shouldAppend,
+        functionSubscribersMap,
+        listenerList,
+        $
+      };
       if (key === "style" && typeof optionsOrCb[key] !== "string") {
-        const style = Object.entries(optionsOrCb[key]).map(([styleKey, styleValue]) => {
-          return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
-        }).join(" ");
-        element.setAttribute(key, style);
+        handleStyle(context);
+      } else if (key === "text") {
+        element.appendChild(document.createTextNode(typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key]));
       } else if (key === "subscribe") {
-        if (shouldAppend) {
-          const funcs = optionsOrCb[key];
-          funcs.forEach((f) => {
-            const regenerator = () => $(tag, optionsOrCb, cb, false);
-            if (functionSubscribersMap.get(f)) {
-              functionSubscribersMap.get(f)?.push([element, regenerator]);
-            } else {
-              functionSubscribersMap.set(f, [[element, regenerator]]);
-            }
-          });
-        }
+        handleSubscription(context);
       } else if (allEventListeners.includes(key)) {
-        const eventDefinition = optionsOrCb[key];
-        const isArray = Array.isArray(eventDefinition);
-        let func;
-        let args = [];
-        if (!isArray) {
-          func = eventDefinition;
-        } else if (isArray && eventDefinition.length < 3 && typeof eventDefinition[0] === "function" && (Array.isArray(eventDefinition[1]) || eventDefinition[1] === undefined)) {
-          func = eventDefinition[0];
-          if (eventDefinition[1])
-            args = eventDefinition[1];
-        } else {
-          throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
-        }
-        const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
-        element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
-        if (funcIndex === -1) {
-          listenerList.push({
-            eventType: key,
-            callback: (e) => func(e, args),
-            originalCallback: func
-          });
-        }
-        element.addEventListener(key, (e) => func(e, args));
+        handleEventListeners(context);
       } else if (key === "ref") {
-        if (typeof optionsOrCb[key] !== "function") {
-          throw new Error("Ref must be a function");
-        }
-        optionsOrCb[key](element);
+        handleRefs(context);
       } else {
         element.setAttribute(key, typeof optionsOrCb[key] === "function" ? optionsOrCb[key]() : optionsOrCb[key]);
       }
     }
     if (typeof cb === "function") {
       nesting.push(element);
-      cb();
+      if (tag === "component") {
+        const on = getOn(stateUpdater, element.id, messagesList);
+        const send = getSend(messagesList);
+        const afterMounted = (cb2) => {
+          afterMountCallbacks[element.id] = cb2;
+        };
+        const afterDestroyed = (cb2) => {
+          afterDestroyCallbacks[element.id] = cb2;
+        };
+        cb({ on, send, stateUpdater, afterMounted, afterDestroyed, ref });
+      } else {
+        cb();
+      }
       nesting.pop();
-      if (shouldAppend)
-        parent.appendChild(element);
+      handleAppend();
     } else if (cb) {
-      throw new Error("Callback must be a function!");
+      throw new Error(`Callback must be a function! Recieved: ${cb}`);
     } else {
-      if (shouldAppend)
-        parent.appendChild(element);
+      handleAppend();
     }
     return element;
   }
   return allElements;
 }
-var setRef = (templater) => {
-  templater._refs = [];
-  const funcElementMap = new Map;
-  templater.ref = () => {
-    const func = (el) => {
-      if (el) {
-        funcElementMap.set(func, el);
-        templater._refs.push(el);
-        return el;
+var componentId = 0;
+var handleStyle = (context) => {
+  const style = Object.entries(context.value).map(([styleKey, styleValue]) => {
+    return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
+  }).join(" ");
+  context.element.setAttribute(context.key, style);
+};
+var uniqueSubId = 0;
+var handleSubscription = (context) => {
+  const { shouldAppend, value } = context;
+  if (shouldAppend) {
+    const funcs = [];
+    if (typeof value === "function") {
+      funcs.push(value);
+    } else if (Array.isArray(value)) {
+      value.forEach((v) => {
+        if (typeof v === "function") {
+          funcs.push(v);
+        } else {
+          throw new Error("Subscription array must contain only functions");
+        }
+      });
+    }
+    funcs.forEach((f) => {
+      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
+      uniqueSubId++;
+      context.element.dataset.uniqueSubId = `${uniqueSubId}`;
+      if (context.functionSubscribersMap.get(f)) {
+        context.functionSubscribersMap.get(f)?.push([context.element, regenerator]);
       } else {
-        return funcElementMap.get(func) || null;
+        context.functionSubscribersMap.set(f, [[context.element, regenerator]]);
       }
-    };
-    return func;
+    });
+  }
+};
+var handleEventListeners = (context) => {
+  const { listenerList, element, value, shouldAppend, key } = context;
+  const eventDefinition = value;
+  const isArray = Array.isArray(eventDefinition);
+  let func;
+  let args = [];
+  if (!isArray) {
+    func = eventDefinition;
+  } else if (isArray && eventDefinition.length < 3 && typeof eventDefinition[0] === "function" && (Array.isArray(eventDefinition[1]) || eventDefinition[1] === undefined)) {
+    func = eventDefinition[0];
+    if (eventDefinition[1])
+      args = eventDefinition[1];
+  } else {
+    throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
+  }
+  const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
+  element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
+  if (funcIndex === -1) {
+    listenerList.push({
+      eventType: key,
+      callback: async (e) => await func(e, args),
+      originalCallback: func
+    });
+  }
+  if (shouldAppend) {
+    element.addEventListener(key, async (e) => await func(e, args));
+  }
+};
+var uniqueRefId = 0;
+var ref = () => {
+  const id = uniqueRefId.toString();
+  uniqueRefId++;
+  return function() {
+    const el = arguments[0];
+    if (el) {
+      el.dataset.uniqueRefId = id;
+      return null;
+    } else {
+      return document.querySelector('[data-unique-ref-id="' + id + '"]');
+    }
   };
 };
-var setStateUpdater = (templater) => {
+var handleRefs = ({ value, element }) => {
+  if (typeof value !== "function") {
+    throw new Error("Ref must be a function");
+  }
+  value(element);
+};
+var getOn = (stateUpdater, componentId2, messages) => {
+  return (event, callback) => {
+    const updater = stateUpdater(() => {
+    });
+    const wrapper = (...args) => {
+      callback(...args);
+      updater();
+    };
+    messages.push({ componentId: componentId2, event, callback: wrapper });
+    return updater;
+  };
+};
+var getSend = (messages) => {
+  return (event, data) => {
+    messages.forEach((message) => {
+      if (message.event === event) {
+        message.callback(data);
+      }
+    });
+  };
+};
+var getStateUpdater = () => {
+  const messagesList = [];
   const functionSubscribersMap = new Map;
   const listenerList = [];
-  templater.stateUpdater = (callback) => {
+  const afterMountCallbacks = {};
+  const afterDestroyCallbacks = {};
+  const stateUpdater = (callback) => {
     const getFuncWrapper = () => {
-      const funcWrapper = (e, args = []) => {
+      const funcWrapper = async (e, args = []) => {
+        const afterDestroys = [];
         const needListeners = [];
         const domDiffer = new DiffDOM({
           postVirtualDiffApply: function(d) {
-            const listenerIndex = d.diff?.element?.attributes?.["data-listener-index"];
-            if (d.diff?.action === "addElement" && listenerIndex) {
-              needListeners.push(listenerIndex);
-            } else if (d.diff?.action === "removeElement" && listenerIndex) {
-              listenerList[parseInt(d.diff.element.attributes["data-listener-index"])] = null;
+            if (d.diff?.action === "addElement") {
+              const findListenersIndex = (el) => {
+                const index = el?.attributes?.["data-listener-index"];
+                if (index) {
+                  needListeners.push(index);
+                }
+                el?.childNodes?.forEach((child2) => {
+                  findListenersIndex(child2);
+                });
+              };
+              findListenersIndex(d.diff?.element);
+            } else if (d.diff?.action === "removeElement") {
+              const isComponent = d.node?.nodeName === "COMPONENT";
+              const elId = d.node?.attributes?.id;
+              if (afterDestroyCallbacks[elId]) {
+                afterDestroys.push(afterDestroyCallbacks[elId]);
+              }
+              if (elId && isComponent) {
+                messagesList.forEach((message, i) => {
+                  if (message.componentId === elId) {
+                    messagesList.splice(i, 1);
+                  }
+                });
+              }
             }
           }
         });
-        callback(e, ...args);
+        await callback(e, ...args);
         const subscribers = functionSubscribersMap.get(funcWrapper);
         subscribers?.forEach((subscriber) => {
           const newEl = subscriber[1]();
-          const oldEl = subscriber[0];
+          let oldEl = subscriber[0];
           const diff = domDiffer.diff(oldEl, newEl);
-          domDiffer.apply(oldEl, diff);
+          if (!document.body.contains(oldEl)) {
+            const uniqueId = oldEl.dataset.uniqueSubId;
+            const result = document.body.querySelector(`[data-unique-sub-id="${uniqueId}"]`);
+            if (result) {
+              const diff2 = domDiffer.diff(result, newEl);
+              domDiffer.apply(result, diff2);
+              subscriber[0] = result;
+              oldEl = result;
+            }
+          } else {
+            domDiffer.apply(oldEl, diff);
+          }
+          newEl.remove();
           needListeners.forEach((index) => {
             const listener = listenerList[parseInt(index)];
             if (listener) {
-              const elToApplyListenerTo = oldEl.querySelector("[data-listener-index='" + index + "']");
+              let elToApplyListenerTo = oldEl.querySelector("[data-listener-index='" + index + "']");
               if (elToApplyListenerTo) {
                 elToApplyListenerTo.addEventListener(listener.eventType, listener.callback);
               }
             }
           });
         });
+        afterDestroys.forEach((cb) => setTimeout(cb));
       };
       return funcWrapper;
     };
@@ -2001,7 +2189,27 @@ var setStateUpdater = (templater) => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList };
+  return {
+    functionSubscribersMap,
+    listenerList,
+    stateUpdater,
+    messagesList,
+    afterMountCallbacks,
+    afterDestroyCallbacks
+  };
+};
+
+// lib/app.ts
+var app_default = (i, el) => {
+  const element = typeof el === "string" ? document.querySelector(el) : el;
+  if (!element && typeof el === "string") {
+    console.error("No element found with css selector: " + el);
+    return;
+  } else if (!element) {
+    console.error("No element found: " + el);
+    return;
+  }
+  i(templateBuilder(element));
 };
 
 // pages/hello.ts
@@ -2061,109 +2269,132 @@ var t = (h) => {
     "gray",
     "black"
   ];
-  const ref = h.ref();
   let word = "\uD83E\uDD53";
-  const updateWord = h.stateUpdater(() => {
-    const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
-    word = words[Math.floor(Math.random() * words.length)];
-    updateWidth();
-  });
-  const updateWidth = h.stateUpdater(() => width += 1);
   let value = 0;
-  const updateValue = h.stateUpdater((_, n) => {
-    value += n;
-  });
-  const addToStuff = h.stateUpdater((e) => {
-    console.log(e);
-    stuff.push((stuff[stuff.length - 1] || 0) + 11);
-  });
+  let catData = "";
+  let fetchingCatData = false;
   let someBool = true;
-  const toggleBool = h.stateUpdater(() => {
-    someBool = !someBool;
-  });
   const thing = (text) => h.div(() => {
     h.text(`I am ${text}`);
   });
-  return h.div({ style: "background-color: red;" }, () => {
-    h.a({ href: "https://www.google.com" }, () => {
-      h.text("I am a link");
+  let inputValue = "I am not a text input";
+  return h.component(({ on, send, stateUpdater }) => {
+    const updateWidth = stateUpdater(() => width += 1);
+    const updateWord = stateUpdater(() => {
+      const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
+      word = words[Math.floor(Math.random() * words.length)];
+      updateWidth();
     });
-    h.div({ subscribe: [updateWord] }, () => {
-      h.text(word);
+    const updateValue = stateUpdater((_, n) => {
+      value += n;
+      send("updateValue", value);
     });
-    h.button({ click: updateWord }, () => {
-      h.text("Change word");
+    const toggleBool = stateUpdater(() => someBool = !someBool);
+    const addToStuff = stateUpdater((e) => {
+      stuff.push((stuff[stuff.length - 1] || 0) + 11);
     });
-    h.div({ subscribe: [toggleBool] }, () => {
-      if (!someBool) {
-        h.button({ click: toggleBool, ref }, () => {
-          h.text("someBool is false");
-        });
-      }
+    const toggleFetchingCatData = stateUpdater(() => {
+      fetchingCatData = !fetchingCatData;
     });
-    h.text("I am some text");
-    h.br();
-    h.text("I am some more text");
-    h.div({ subscribe: [toggleBool] }, () => {
-      if (someBool) {
-        h.button({ click: toggleBool }, () => {
-          h.text("someBool is true");
-        });
-      }
+    const fetchCatData = stateUpdater(async () => {
+      toggleFetchingCatData();
+      const res = await fetch("https://meowfacts.herokuapp.com/");
+      const data = await res.json();
+      catData = data.data[0];
+      toggleFetchingCatData();
     });
-    h.div({ subscribe: [updateValue] }, () => {
-      h.text(value);
+    const inputValueUpdated = on("inputValueChanged", (v) => {
+      inputValue = v;
     });
-    h.button({ click: [updateValue, [1]] }, () => {
-      h.text("Increment");
-    });
-    h.button({ click: [updateValue, [-1]] }, () => {
-      h.text("Decrement");
-    });
-    thing("baka");
-    h.button({ click: addToStuff, subscribe: [addToStuff] }, () => {
-      h.text("Add to stuff" + stuff.length);
-    });
-    thing("Aho");
-    h.ul({
-      subscribe: [addToStuff],
-      style: {
-        backgroundColor: () => colors[Math.floor(Math.random() * colors.length)]
-      }
+    const { div, button, a, text, br, ul, li, comment } = h;
+    div({
+      style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] }
     }, () => {
-      stuff.forEach((thing2) => {
-        h.li({
-          style: {
-            backgroundColor: colors[Math.floor(Math.random() * colors.length)]
-          }
-        }, () => {
-          h.text(`I am a list item with value: ${thing2}`);
+      a({ href: "https://www.google.com" }, () => {
+        text("I am a link");
+      });
+      div({ subscribe: inputValueUpdated }, () => {
+        text(inputValue);
+      });
+      div(() => {
+        text("This is one instance of a child");
+        child(h, value);
+      });
+      div(() => {
+        text("This is another instance of a child");
+        child(h, value);
+      });
+      div({ subscribe: updateWord }, () => {
+        text(word);
+      });
+      button({ click: updateWord, text: "Change word" });
+      div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
+        text(fetchingCatData ? "Fetching cat data..." : catData);
+      });
+      button({ click: fetchCatData }, () => {
+        text("Fetch cat data");
+      });
+      div({ subscribe: [toggleBool] }, () => {
+        if (!someBool) {
+          button({ click: toggleBool }, () => {
+            text("someBool is false");
+          });
+        }
+      });
+      div({ subscribe: toggleBool }, () => {
+        if (someBool) {
+          child(h, value);
+        }
+      });
+      text("I am some text");
+      br();
+      text("I am some more text");
+      div({ subscribe: toggleBool }, () => {
+        if (someBool) {
+          button({ click: toggleBool }, () => {
+            text("someBool is true");
+          });
+        }
+      });
+      div({ subscribe: updateValue }, () => {
+        text(value);
+      });
+      button({ click: [updateValue, [1]], text: "Increment" });
+      button({ click: [updateValue, [-1]], text: "Decrement" });
+      thing("baka");
+      button({ click: addToStuff, subscribe: addToStuff }, () => {
+        text("Add to stuff" + stuff.length);
+      });
+      thing("Aho");
+      ul({
+        style: {
+          backgroundColor: () => colors[Math.floor(Math.random() * colors.length)]
+        },
+        subscribe: addToStuff
+      }, () => {
+        stuff.forEach((thing2) => {
+          li({
+            style: {
+              backgroundColor: colors[Math.floor(Math.random() * colors.length)]
+            },
+            text: () => `I am a list item with value: ${thing2}`
+          });
         });
       });
+      div({
+        style: {
+          backgroundColor: "pink",
+          width: () => `${width}px`,
+          height: "100px"
+        },
+        class: () => `${width}`,
+        subscribe: updateWidth,
+        mousemove: updateWidth
+      }, () => {
+        text("mouse over me");
+      });
+      comment("This is a comment!");
     });
-    h.div({
-      subscribe: [updateWidth],
-      style: {
-        backgroundColor: "pink",
-        width: () => `${width}px`,
-        height: "100px"
-      },
-      class: () => `${width}`,
-      mousemove: updateWidth
-    }, () => {
-      h.text("mouse over me");
-    });
-    h.comment("This is a comment!");
   });
 };
-var app = (i, id) => {
-  const el = document.getElementById(id);
-  if (!el) {
-    console.error("No element found with id: " + id);
-    return;
-  }
-  const x = templater2(el);
-  i(x);
-  console.log(x);
-};
-app(t, "app");
+app_default(t, "#app");
