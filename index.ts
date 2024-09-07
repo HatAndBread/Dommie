@@ -11,7 +11,7 @@ const controllerPaths = await readdir(CONTROLLER_DIR, { recursive: true });
 const controllerFiles = controllerPaths.filter((f) => f.endsWith("controller.ts"));
 
 const pagesToBundle = pagesFiles.map((f) => PAGES_DIR + "/" + f);
-const libToBundle = libFiles.map((f) => LIB_DIR + "/" + f);
+const libToBundle = libFiles.map((f) => LIB_DIR + "/" + f).filter((f) => !f.endsWith(".test.ts"));
 const controllers = controllerPaths.map((f) => CONTROLLER_DIR + "/" + f);
 
 console.log(pagesFiles);
