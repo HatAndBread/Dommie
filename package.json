@@ -8,7 +8,9 @@
     "build": "tsc"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^15.7.3",
     "@types/bun": "^1.1.6",
+    "@types/jest": "^29.5.12",
     "prettier": "^3.3.3"
   },
   "peerDependencies": {

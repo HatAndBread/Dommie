@@ -5,11 +5,11 @@ export type Component = (h: Templater, ...args: any) => ComponentBase;
 export default (i: Component, el: string | HTMLElement) => {
   const element = typeof el === "string" ? document.querySelector(el) : el;
   if (!element && typeof el === "string") {
-    console.error("No element found with css selector: " + el);
-    return;
+    const err = "No element found with css selector: " + el;
+    throw new Error(err);
   } else if (!element) {
-    console.error("No element found: " + el);
-    return;
+    const err = "No element found: " + el;
+    throw new Error(err);
   }
   i(templateBuilder(element as HTMLElement));
 };
