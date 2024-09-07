@@ -75,9 +75,7 @@ const t: Component = (h) => {
 
   let inputValue = "I am not a text input";
 
-  return h.component(({ on, send, stateUpdater, ref }) => {
-    const r = ref();
-
+  return h.component(({ on, send, stateUpdater }) => {
     const updateWidth = stateUpdater(() => (width += 1));
     const updateWord = stateUpdater(() => {
       const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
@@ -140,7 +138,7 @@ const t: Component = (h) => {
         });
         div({ subscribe: [toggleBool] }, () => {
           if (!someBool) {
-            button({ click: toggleBool, ref: r }, () => {
+            button({ click: toggleBool }, () => {
               text("someBool is false");
             });
           }

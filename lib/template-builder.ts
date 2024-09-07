@@ -40,9 +40,14 @@ export function templateBuilder(root: Element) {
     };
   }
 
-  const refs: Element[] = [];
-  const ref = getRef(refs);
-  const { functionSubscribersMap, listenerList, stateUpdater, messagesList } = getStateUpdater();
+  const {
+    functionSubscribersMap,
+    listenerList,
+    stateUpdater,
+    messagesList,
+    afterMountCallbacks,
+    afterDestroyCallbacks,
+  } = getStateUpdater();
   const nesting = [root];
   function $(tag: string, optionsOrCb: any, cb?: Function, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -74,6 +79,15 @@ export function templateBuilder(root: Element) {
         element.id = id;
       }
     }
+    const handleAppend = () => {
+      if (!shouldAppend) return;
+      parent.appendChild(element);
+      if (tag === "component") {
+        if (afterMountCallbacks[element.id]) {
+          setTimeout(afterMountCallbacks[element.id]);
+        }
+      }
+    };
     if (!optionsOrCb) optionsOrCb = {};
     for (let key in optionsOrCb) {
       const context: Context = {
@@ -115,20 +129,22 @@ export function templateBuilder(root: Element) {
       if (tag === "component") {
         const on = getOn(stateUpdater, element.id, messagesList);
         const send = getSend(messagesList);
-        cb({ on, send, stateUpdater, ref });
+        const afterMounted = (cb: () => void) => {
+          afterMountCallbacks[element.id] = cb;
+        };
+        const afterDestroyed = (cb: () => void) => {
+          afterDestroyCallbacks[element.id] = cb;
+        };
+        cb({ on, send, stateUpdater, afterMounted, afterDestroyed, ref });
       } else {
         cb();
       }
       nesting.pop();
-      if (shouldAppend) {
-        parent.appendChild(element);
-      }
+      handleAppend();
     } else if (cb) {
       throw new Error(`Callback must be a function! Recieved: ${cb}`);
     } else {
-      if (shouldAppend) {
-        parent.appendChild(element);
-      }
+      handleAppend();
     }
     return element;
   }
@@ -207,7 +223,23 @@ const handleEventListeners = (context: Context) => {
   }
 };
 
+let uniqueRefId = 0;
+const ref = () => {
+  const id = uniqueRefId.toString();
+  uniqueRefId++;
+  return function (): HTMLElement | null {
+    const el = arguments[0];
+    if (el) {
+      el.dataset.uniqueRefId = id;
+      return null;
+    } else {
+      return document.querySelector('[data-unique-ref-id="' + id + '"]');
+    }
+  };
+};
+
 const handleRefs = ({ value, element }: Context) => {
+  // value here is the closure in the ref function declared above 👆
   if (typeof value !== "function") {
     throw new Error("Ref must be a function");
   }
@@ -240,22 +272,6 @@ const getSend = (messages: { event: string; callback: Function }[]) => {
   };
 };
 
-const getRef = (refs: Element[]) => {
-  const funcElementMap = new Map<Function, Element>();
-  return () => {
-    const func = (el?: Element) => {
-      if (el) {
-        funcElementMap.set(func, el);
-        refs.push(el);
-        return el;
-      } else {
-        return funcElementMap.get(func) || null;
-      }
-    };
-    return func;
-  };
-};
-
 type FuncSubscriberMap = Map<Function, [Element, () => HTMLElement | Comment][]>;
 type ListenerList = ({
   eventType: string;
@@ -267,12 +283,16 @@ const getStateUpdater = () => {
   const messagesList: MessagesList = [];
   const functionSubscribersMap: FuncSubscriberMap = new Map();
   const listenerList: ListenerList = [];
+  const afterMountCallbacks: { [key: string]: Function } = {};
+  const afterDestroyCallbacks: { [key: string]: Function } = {};
   const stateUpdater = (callback: Function) => {
     const getFuncWrapper = () => {
       const funcWrapper = async (e: Event, args: any[] = []) => {
-        const needListeners: string[] = [];
+        // This function wraps all subscriber functions
+        const afterDestroys: Function[] = [];
 
         // Create a new instance of the diffDOM library
+        const needListeners: string[] = [];
         const domDiffer = new DiffDOM({
           postVirtualDiffApply: function (d) {
             if (d.diff?.action === "addElement") {
@@ -287,8 +307,11 @@ const getStateUpdater = () => {
               };
               findListenersIndex(d.diff?.element);
             } else if (d.diff?.action === "removeElement") {
-              const elId = d.node?.attributes?.id;
               const isComponent = d.node?.nodeName === "COMPONENT";
+              const elId = d.node?.attributes?.id;
+              if (afterDestroyCallbacks[elId]) {
+                afterDestroys.push(afterDestroyCallbacks[elId]);
+              }
               // Clean up after component is removed from the dom
               if (elId && isComponent) {
                 // remove all messages for this component
@@ -340,6 +363,8 @@ const getStateUpdater = () => {
             }
           });
         });
+        // Exectute destroy callbacks
+        afterDestroys.forEach((cb) => setTimeout(cb));
       };
       return funcWrapper;
     };
@@ -347,7 +372,14 @@ const getStateUpdater = () => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList, stateUpdater, messagesList };
+  return {
+    functionSubscribersMap,
+    listenerList,
+    stateUpdater,
+    messagesList,
+    afterMountCallbacks,
+    afterDestroyCallbacks,
+  };
 };
 
 export class ComponentBase {

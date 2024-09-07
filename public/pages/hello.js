@@ -2,13 +2,24 @@
 var child = (h, initialSomeOtherValue) => {
   let inputValue = "I am a text input";
   let someOtherValue = initialSomeOtherValue;
-  return h.component(({ on, send, stateUpdater, ref }) => {
+  return h.component(({ on, send, stateUpdater, afterMounted, afterDestroyed, ref }) => {
     const updateSomeOtherValue = on("updateValue", (v) => someOtherValue = v);
     const updateInputValue = stateUpdater((e) => {
       inputValue = e.target.value;
       send("inputValueChanged", inputValue);
     });
     const inputRef = ref();
+    const otherRef = ref();
+    afterMounted(() => {
+      console.log("I WAS MOUNTED");
+      inputRef()?.focus();
+      console.log(inputRef());
+      console.log(otherRef());
+    });
+    afterDestroyed(() => {
+      console.log("I WAS DESTROYED!");
+      console.log(inputRef());
+    });
     const { div, text, h1, input } = h;
     div(() => {
       div(() => {
@@ -16,15 +27,15 @@ var child = (h, initialSomeOtherValue) => {
         h1({ subscribe: updateInputValue }, () => {
           text(inputValue);
         });
-        h1({ subscribe: updateSomeOtherValue }, () => {
+        h1({ subscribe: updateSomeOtherValue, ref: otherRef }, () => {
           text(someOtherValue);
         });
         input({
+          ref: inputRef,
           type: "text",
           value: () => inputValue,
           subscribe: updateInputValue,
-          input: updateInputValue,
-          ref: inputRef
+          input: updateInputValue
         });
       });
     });
@@ -1893,9 +1904,14 @@ function templateBuilder(root) {
       $(elementName, optionsOrCb, cb);
     };
   }
-  const refs = [];
-  const ref = getRef(refs);
-  const { functionSubscribersMap, listenerList, stateUpdater, messagesList } = getStateUpdater();
+  const {
+    functionSubscribersMap,
+    listenerList,
+    stateUpdater,
+    messagesList,
+    afterMountCallbacks,
+    afterDestroyCallbacks
+  } = getStateUpdater();
   const nesting = [root];
   function $(tag, optionsOrCb, cb, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
@@ -1926,6 +1942,16 @@ function templateBuilder(root) {
         element.id = id;
       }
     }
+    const handleAppend = () => {
+      if (!shouldAppend)
+        return;
+      parent.appendChild(element);
+      if (tag === "component") {
+        if (afterMountCallbacks[element.id]) {
+          setTimeout(afterMountCallbacks[element.id]);
+        }
+      }
+    };
     if (!optionsOrCb)
       optionsOrCb = {};
     for (let key in optionsOrCb) {
@@ -1961,20 +1987,22 @@ function templateBuilder(root) {
       if (tag === "component") {
         const on = getOn(stateUpdater, element.id, messagesList);
         const send = getSend(messagesList);
-        cb({ on, send, stateUpdater, ref });
+        const afterMounted = (cb2) => {
+          afterMountCallbacks[element.id] = cb2;
+        };
+        const afterDestroyed = (cb2) => {
+          afterDestroyCallbacks[element.id] = cb2;
+        };
+        cb({ on, send, stateUpdater, afterMounted, afterDestroyed, ref });
       } else {
         cb();
       }
       nesting.pop();
-      if (shouldAppend) {
-        parent.appendChild(element);
-      }
+      handleAppend();
     } else if (cb) {
       throw new Error(`Callback must be a function! Recieved: ${cb}`);
     } else {
-      if (shouldAppend) {
-        parent.appendChild(element);
-      }
+      handleAppend();
     }
     return element;
   }
@@ -2043,6 +2071,20 @@ var handleEventListeners = (context) => {
     element.addEventListener(key, async (e) => await func(e, args));
   }
 };
+var uniqueRefId = 0;
+var ref = () => {
+  const id = uniqueRefId.toString();
+  uniqueRefId++;
+  return function() {
+    const el = arguments[0];
+    if (el) {
+      el.dataset.uniqueRefId = id;
+      return null;
+    } else {
+      return document.querySelector('[data-unique-ref-id="' + id + '"]');
+    }
+  };
+};
 var handleRefs = ({ value, element }) => {
   if (typeof value !== "function") {
     throw new Error("Ref must be a function");
@@ -2070,28 +2112,16 @@ var getSend = (messages) => {
     });
   };
 };
-var getRef = (refs) => {
-  const funcElementMap = new Map;
-  return () => {
-    const func = (el) => {
-      if (el) {
-        funcElementMap.set(func, el);
-        refs.push(el);
-        return el;
-      } else {
-        return funcElementMap.get(func) || null;
-      }
-    };
-    return func;
-  };
-};
 var getStateUpdater = () => {
   const messagesList = [];
   const functionSubscribersMap = new Map;
   const listenerList = [];
+  const afterMountCallbacks = {};
+  const afterDestroyCallbacks = {};
   const stateUpdater = (callback) => {
     const getFuncWrapper = () => {
       const funcWrapper = async (e, args = []) => {
+        const afterDestroys = [];
         const needListeners = [];
         const domDiffer = new DiffDOM({
           postVirtualDiffApply: function(d) {
@@ -2107,8 +2137,11 @@ var getStateUpdater = () => {
               };
               findListenersIndex(d.diff?.element);
             } else if (d.diff?.action === "removeElement") {
-              const elId = d.node?.attributes?.id;
               const isComponent = d.node?.nodeName === "COMPONENT";
+              const elId = d.node?.attributes?.id;
+              if (afterDestroyCallbacks[elId]) {
+                afterDestroys.push(afterDestroyCallbacks[elId]);
+              }
               if (elId && isComponent) {
                 messagesList.forEach((message, i) => {
                   if (message.componentId === elId) {
@@ -2148,6 +2181,7 @@ var getStateUpdater = () => {
             }
           });
         });
+        afterDestroys.forEach((cb) => setTimeout(cb));
       };
       return funcWrapper;
     };
@@ -2155,7 +2189,14 @@ var getStateUpdater = () => {
     functionSubscribersMap.set(wrapper, []);
     return wrapper;
   };
-  return { functionSubscribersMap, listenerList, stateUpdater, messagesList };
+  return {
+    functionSubscribersMap,
+    listenerList,
+    stateUpdater,
+    messagesList,
+    afterMountCallbacks,
+    afterDestroyCallbacks
+  };
 };
 
 // lib/app.ts
@@ -2237,8 +2278,7 @@ var t = (h) => {
     h.text(`I am ${text}`);
   });
   let inputValue = "I am not a text input";
-  return h.component(({ on, send, stateUpdater, ref }) => {
-    const r = ref();
+  return h.component(({ on, send, stateUpdater }) => {
     const updateWidth = stateUpdater(() => width += 1);
     const updateWord = stateUpdater(() => {
       const words = ["\uD83E\uDD53", "\uD83C\uDF73", "\uD83E\uDD5E", "\uD83E\uDD69", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF55", "\uD83C\uDF2D", "\uD83E\uDD6A", "\uD83C\uDF2E"];
@@ -2296,7 +2336,7 @@ var t = (h) => {
       });
       div({ subscribe: [toggleBool] }, () => {
         if (!someBool) {
-          button({ click: toggleBool, ref: r }, () => {
+          button({ click: toggleBool }, () => {
             text("someBool is false");
           });
         }
