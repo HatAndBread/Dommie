@@ -6,7 +6,7 @@ export interface ComponentBaseInput {
   on: (event: string, callback: Function) => Function;
   ref: () => () => HTMLElement | null;
   send: (event: string, data: any) => void;
-  stateUpdater: (callback: Function) => (e: Event, ...args: any[]) => Promise<void>;
+  stateUpdater: (callback: Function) => (e?: Event, ...args: any[]) => Promise<void>;
 }
 export interface Templater extends AllElements {
   component: (callback: (i: ComponentBaseInput) => any) => ComponentBase;

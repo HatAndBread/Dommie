@@ -90,7 +90,6 @@ const t: Component = (h) => {
     const addToStuff = stateUpdater((e: Event) => {
       stuff.push((stuff[stuff.length - 1] || 0) + 11);
     });
-    console.log("FUCK!");
     const toggleFetchingCatData = stateUpdater(() => {
       fetchingCatData = !fetchingCatData;
     });
@@ -101,10 +100,7 @@ const t: Component = (h) => {
       catData = data.data[0];
       toggleFetchingCatData(e);
     });
-    afterMounted(() => {
-      fetchCatData();
-      console.log("The main thing is mounted!");
-    });
+    afterMounted(fetchCatData);
 
     const inputValueUpdated = on("inputValueChanged", (v: string) => {
       inputValue = v;

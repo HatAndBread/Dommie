@@ -5,8 +5,8 @@ import { allHtmlElements } from "./html-elements.ts";
 import { DiffDOM } from "diff-dom";
 
 type Context = {
-  element: Element;
-  parent: Element;
+  element: HTMLElement;
+  parent: HTMLElement;
   tag: string;
   key: string;
   value: any;
@@ -15,19 +15,13 @@ type Context = {
   shouldAppend: boolean;
   functionSubscribersMap: FuncSubscriberMap;
   listenerList: ListenerList;
-  text: string | undefined;
-  $: (
-    tag: string,
-    optionsOrCb: any,
-    cb?: Function | String,
-    shouldAppend?: boolean,
-  ) => Comment | HTMLElement;
+  $: (tag: string, optionsOrCb: any, cb?: any, shouldAppend?: boolean) => Comment | HTMLElement;
 };
 
 type MessagesList = { event: string; callback: Function; componentId: string }[];
 
 let componentId = 0;
-export function templateBuilder(root: Element) {
+export function templateBuilder(root: HTMLElement) {
   const allElements = <Templater>{};
   for (const elementName of allHtmlElements) {
     // @ts-ignore
@@ -49,7 +43,7 @@ export function templateBuilder(root: Element) {
     afterDestroyCallbacks,
   } = getStateUpdater();
   const nesting = [root];
-  function $(tag: string, optionsOrCb: any, cb?: Function, shouldAppend = true) {
+  function $(tag: string, optionsOrCb: any, cb?: any, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
     if (tag === "text") {
       const textNode = document.createTextNode(optionsOrCb);
@@ -287,7 +281,8 @@ const getStateUpdater = () => {
   const afterDestroyCallbacks: { [key: string]: Function } = {};
   const stateUpdater = (callback: Function) => {
     const getFuncWrapper = () => {
-      const funcWrapper = async (e: Event, args: any[] = []) => {
+      const funcWrapper = async (e?: Event, args?: any[]) => {
+        if (!args) args = [];
         // This function wraps all subscriber functions
         const afterDestroys: Function[] = [];
 
@@ -332,7 +327,7 @@ const getStateUpdater = () => {
         const subscribers = functionSubscribersMap.get(funcWrapper);
         subscribers?.forEach((subscriber) => {
           const newEl = subscriber[1]();
-          let oldEl = subscriber[0];
+          let oldEl = subscriber[0] as HTMLElement;
           const diff = domDiffer.diff(oldEl, newEl as HTMLElement);
           if (!document.body.contains(oldEl)) {
             // If the element is not in the dom yet, we need to add it.
@@ -345,7 +340,7 @@ const getStateUpdater = () => {
               const diff = domDiffer.diff(result, newEl as HTMLElement);
               domDiffer.apply(result, diff);
               subscriber[0] = result;
-              oldEl = result;
+              oldEl = result as HTMLElement;
             }
           } else {
             domDiffer.apply(oldEl, diff);

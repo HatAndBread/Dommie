@@ -11,5 +11,5 @@ export default (i: Component, el: string | HTMLElement) => {
     console.error("No element found: " + el);
     return;
   }
-  i(templateBuilder(element));
+  i(templateBuilder(element as HTMLElement));
 };
