@@ -1,10 +1,10 @@
 {
-  "name": "arrow",
+  "name": "arch-e",
   "version": "1.0.0",
   "module": "./build/app.js",
   "entrypoint": "./build/app.js",
   "type": "module",
-  "description": "A lightweight library for building SPAs in pure JavaScript.",
+  "description": "A lightweight library for building reactive UIs pure JavaScript.",
   "license": "MIT",
   "author": "Joshua Hume",
   "scripts": {
