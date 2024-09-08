@@ -5,7 +5,8 @@
   "scripts": {
     "start": "bun run index.js",
     "dev": "bun --watch run index.ts",
-    "build": "tsc"
+    "build": "bun run build-lib.ts && bun run build:declaration",
+    "build:declaration": "tsc --emitDeclarationOnly --project tsconfig.types.json"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^15.7.3",

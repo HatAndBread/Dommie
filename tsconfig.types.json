@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "rootDir": "./lib"
+  },
+  "include": ["lib/**/*.ts"],
+  "exclue": ["lib/**/*.test.ts"]
+}
