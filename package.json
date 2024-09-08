@@ -1,7 +1,12 @@
 {
-  "name": "hello",
+  "name": "arrow",
+  "version": "1.0.0",
   "module": "./build/app.js",
+  "entrypoint": "./build/app.js",
   "type": "module",
+  "description": "A lightweight library for building SPAs in pure JavaScript.",
+  "license": "MIT",
+  "author": "Joshua Hume",
   "scripts": {
     "start": "bun run index.js",
     "dev": "bun --watch run index.ts",
