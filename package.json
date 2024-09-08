@@ -1,12 +1,11 @@
 {
   "name": "hello",
-  "module": "index.ts",
+  "module": "./build/app.js",
   "type": "module",
   "scripts": {
     "start": "bun run index.js",
     "dev": "bun --watch run index.ts",
-    "build": "bun run build-lib.ts && bun run build:declaration",
-    "build:declaration": "tsc --emitDeclarationOnly --project tsconfig.types.json"
+    "build": "tsc --project tsconfig.types.json"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^15.7.3",

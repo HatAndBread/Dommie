@@ -1,7 +1,7 @@
-import type { Templater } from "./types.ts";
-import { allEventListeners } from "./all-event-listeners.ts";
-import { toSnakeCase } from "./strings.ts";
-import { allHtmlElements } from "./html-elements.ts";
+import type { Templater } from "./types";
+import { allEventListeners } from "./all-event-listeners";
+import { toSnakeCase } from "./strings";
+import { allHtmlElements } from "./html-elements";
 import { DiffDOM } from "diff-dom";
 
 const COMPONENT_TAG = "component";
