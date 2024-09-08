@@ -1,15 +1,6 @@
-# hello
+# Dommie
 
-To install dependencies:
+## What?
+Dommie is a simple and lightweight Dom manipulation library for creating reactive UI components in pure JavaScript.
 
-```bash
-bun install
-```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.1.22. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+Documentation forthcoming. 🚧

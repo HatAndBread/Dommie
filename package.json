@@ -1,8 +1,9 @@
 {
-  "name": "arch-e",
-  "version": "1.0.0",
+  "name": "dommie",
+  "version": "1.0.1",
   "module": "./build/app.js",
   "entrypoint": "./build/app.js",
+  "types": "./build/app.d.ts",
   "type": "module",
   "description": "A lightweight library for building reactive UIs pure JavaScript.",
   "license": "MIT",
