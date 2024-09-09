@@ -4,11 +4,27 @@ A lightweight templating library that allows developers to build HTML elements d
 
 ## Features
 
-    Dynamic Element Creation: Easily create and manipulate HTML elements programmatically.
-    Component System: Define components with lifecycle hooks like afterMount and afterDestroy.
-    Subscriptions: Subscribe elements to functions or state changes and update them dynamically.
-    Event Listeners: Add event listeners to elements, with automatic management of event handlers.
-    Virtual DOM Diffing: Efficiently update the DOM using a diffing system to apply changes only when necessary.
+Write your UIs like this!
+
+  ```typescript
+  import app from "dommie";
+  import type { Component } from "dommie";
+
+  const myComponent: Component = (h) => {
+    const { component, div, h1, text, a, br } = h;
+
+    return component(() => {
+      div({ style: { backgroundColor: "pink" }, text: "I am a div" }, () => {
+        h1({ text: "I am an h1. I am a child of the div above." });
+        text("I am a text node!");
+        br();
+        a({ href: "https://google.com", text: "I am a link to google" });
+      });
+    });
+  };
+
+  app(myComponent, "#app");
+  ```
 
 ## Installation
 
@@ -16,8 +32,224 @@ A lightweight templating library that allows developers to build HTML elements d
 npm install dommie
 ```
 
-## Usage
-Basic Example
+## Subscriptions
+
+Reactivity works by subscribing elements to `stateUpdater` functions. When `stateUpdater` functions are called, all elements that are subscribed to the particular function will be updated.
+`stateUpdater` is passed into your component as a parameter (along with other useful lifecycle hooks and functions), and is the only way to update the state of your component.
+In the example below, the `div` element is subscribed to the `updateCount` function, so it will be updated whenever `updateCount` is called.
+
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div, button } = h;
+  let count = 0;
+
+  return h.component(({ stateUpdater }) => {
+    const updateCount = stateUpdater(() => count++);
+
+    div(() => {
+      div({ subscribe: updateCount, text: () => count });
+      button({ text: "Update Count", click: updateCount });
+    });
+  });
+};
+app(hello, "#app");
+```
+
+You can also subscribe to multiple state updaters by passing an array of `stateUpdater` functions to the `subscribe` property.
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div, button } = h;
+  let count = 0;
+  let title = "Hello World!";
+
+  return h.component(({ stateUpdater }) => {
+    const updateCount = stateUpdater(() => count++);
+    const updateTitle = stateUpdater(() => {
+      title = "Hello Universe!";
+    });
+
+    div({ subscribe: [updateCount, updateTitle] }, () => {
+      div({ text: () => count });
+      div({ text: () => title });
+      button({ text: "Update Count", click: updateCount });
+      button({ text: "Update Title", click: updateTitle });
+    });
+  });
+};
+
+app(hello, "#app");
+```
+
+The first argument of a `stateUpdater` function is always an event object. If you want to pass additional arguments to the `stateUpdater` function, you can pass them as an array. The first element of the array will be the event object, and the rest of the elements will be the additional arguments.
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div, button } = h;
+  let count = 0;
+
+  return h.component(({ stateUpdater }) => {
+    const updateCount = stateUpdater((_: Event, newNumber: number) => {
+      count += newNumber;
+    });
+
+    div(() => {
+      div({ subscribe: updateCount, text: () => count });
+      button({ text: "Increment", click: [updateCount, [1]] });
+      button({ text: "Decrement", click: [updateCount, [-1]] });
+    });
+  });
+};
+
+app(hello, "#app");
+```
+
+## Message Passing
+In Dommie components can communicate with each other using a message passing system. This is useful when you want to update a component based on the state of another component.
+Unlike many other libraries, in Dommie messages can be passed both ways, from parent to child and from child to parent.
+
+```typescript
+// ./components/parent.ts
+import app from "dommie";
+import { child } from "./child";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div, button } = h;
+  let count = 0;
+
+  return h.component(({ stateUpdater, send }) => {
+    const updateCount = stateUpdater((_: Event, newNumber: number) => {
+      count += newNumber;
+      send("updateCount", count);
+    });
+
+    div(() => {
+      button({ text: "Increment", click: [updateCount, [1]] });
+      button({ text: "Decrement", click: [updateCount, [-1]] });
+    });
+    child(h, count);
+  });
+};
+
+app(hello, "#app");
+
+```
+
+```typescript
+// ./components/child.ts
+import type { Component } from "dommie";
+
+export const child: Component = (h, defaultValue: number) => {
+  const { div } = h;
+  let count = defaultValue;
+
+  return h.component(({ on }) => {
+    // Update the count when a message is received
+    const updateCount = on(
+      "updateCount",
+      (newNumber: number) => (count = newNumber),
+    );
+
+    div(() => {
+      div({ subscribe: updateCount, text: () => count });
+    });
+  });
+};
+```
+
+## Lifecycle Hooks
+
+### afterMounted
+
+The `afterMounted` lifecycle hook is called after the component has been mounted to the DOM. This is useful for running code that requires the component to be mounted, such as fetching data from an API.
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div } = h;
+  let catData: null | string = null;
+
+  return h.component(({ afterMounted, stateUpdater }) => {
+    const updateCatData = stateUpdater(
+      (newData: string) => (catData = newData),
+    );
+    afterMounted(async () => {
+      const res = await fetch("https://meowfacts.herokuapp.com/");
+      const data = await res.json();
+      updateCatData(data.data[0]);
+    });
+    div({ text: () => catData || "Loading...", subscribe: updateCatData });
+  });
+};
+
+app(hello, "#app");
+```
+
+### afterDestroyed
+
+The `afterDestroyed` lifecycle hook is called after the component has been removed from the DOM. This is useful for cleaning up resources, such as event listeners.
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div } = h;
+  let count = 0;
+
+  return h.component(({ stateUpdater, afterDestroyed }) => {
+    const updatecount = stateUpdater(() => count++);
+    const interval = setInterval(updatecount, 1000);
+
+    afterDestroyed(() => {
+      clearInterval(interval);
+    });
+
+    div({ text: () => count, subscribe: updatecount });
+  });
+};
+
+app(hello, "#app");
+```
+
+## Refs
+
+Refs are a way to access the underlying DOM element of a component. You can create a ref using the `ref` function and pass it to the `ref` property of an element. You can then access the DOM element using the ref function.
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  return h.component(({ ref, afterMounted }) => {
+    const inputRef = ref();
+
+    // Focus on the input after it is mounted
+    afterMounted(() => {
+      inputRef()?.focus();
+    });
+
+    h.input({ ref: inputRef, type: "text" });
+  });
+};
+
+app(hello, "#app");
+```
+
+## Basic Example
 
 ```typescript
 import app from "dommie";
@@ -69,36 +301,6 @@ const hello: Component = (h) => {
 
 // Mount the app to the #app element
 app(hello, "#app");
-
-```
-
-## Subscriptions
-
-Subscribe an element to a function or a dynamic value:
-
-```typescript
-// Example here
-```
-
-## Event Listeners
-
-You can easily attach event listeners to any element:
-
-```typescript
-// Example here
-```
-
-## Message Passing
-In Dommie components can communicate with each other using a message passing system. This is useful when you want to update a component based on the state of another component.
-Unlike many other libraries, in Dommie messages can be passed both ways, from parent to child and from child to parent.
-
-```typescript
-// ./components/parent.ts
-
-```
-
-```typescript
-// ./components/child.ts
 
 ```
 
