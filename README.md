@@ -508,7 +508,7 @@ h.component(({ stateUpdater }) => {
 });
 ```
 
-An incomplete list of possible events:
+A complete list of possible events:
 ```
 abort
 afterprint

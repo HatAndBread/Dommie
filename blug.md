@@ -95,5 +95,3 @@ Dommie is perfect for scenarios where a larger framework might be overkill:
 While React, Vue, and Angular are fantastic tools for large, complex projects, sometimes you need something simpler. That's why I built Dommie—to offer a lightweight alternative with a focus on intuitive templating, efficient performance, and a subscriber-based state system. It might not be the largest framework, but it gets the job done with minimal fuss, making it a great tool for smaller projects, widgets, and anyone looking to simplify their development workflow.
 
 If you're curious to try something new, give Dommie a shot. It was built out of curiosity—and who knows? You might like the results too.
-
-This version explains how Dommie uses a "subscriber" system to manage state updates rather than full reactivity, emphasizing how this keeps things lightweight and explicit. Let me know how it feels!
