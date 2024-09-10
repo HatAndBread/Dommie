@@ -1,17 +1,19 @@
 {
   "name": "dommie",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "module": "./build/app.js",
   "entrypoint": "./build/app.js",
   "types": "./build/app.d.ts",
   "type": "module",
   "description": "A lightweight library for building reactive UIs pure JavaScript.",
   "license": "MIT",
+  "repository": "https://github.com/HatAndBread/Dommie",
   "author": "Joshua Hume",
   "scripts": {
     "start": "bun run index.js",
     "dev": "bun --watch run index.ts",
-    "build": "tsc --project tsconfig.types.json"
+    "build": "tsc --project tsconfig.types.json",
+    "build:min": "bun run build-min.ts"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^15.7.3",

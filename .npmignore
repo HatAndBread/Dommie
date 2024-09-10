@@ -9,4 +9,6 @@ prettier.config.js
 bunfig.toml
 bun.lockb
 build-lib.ts
+build-min.ts
 tsconfig.json
+blug.md
