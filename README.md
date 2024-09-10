@@ -1,3 +1,6 @@
+
+<img width="758" alt="dommie-logo" src="https://github.com/user-attachments/assets/8862c679-b865-4b5c-a4b5-aa2110268a88">
+
 # Dommie
 
 A lightweight templating library that allows developers to build HTML elements dynamically, manage components with lifecycle hooks, handle subscriptions and state updates, and efficiently update the DOM using a virtual DOM diffing system powered by [DiffDOM](https://github.com/fiduswriter/diffDOM).
