@@ -137,6 +137,8 @@ const t: Component = (h) => {
         div({ subscribe: updateWord }, () => {
           text(word);
         });
+        h.custom({ nodeName: "custom-node", text: "I am a custom node!" });
+        h.br();
         button({ click: updateWord, text: "Change word" });
         div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
           text(fetchingCatData ? "Fetching cat data..." : catData);

@@ -60,8 +60,12 @@ export function templateBuilder(root: HTMLElement) {
     }
 
     if (tag === "custom") {
-      // todo: add custom element
-      //return allElements;
+      if (typeof optionsOrCb === "object" && optionsOrCb["nodeName"]) {
+        tag = optionsOrCb["nodeName"];
+        delete optionsOrCb["nodeName"];
+      } else {
+        throw new Error("Custom tag must have a nodeName property");
+      }
     }
     if (typeof optionsOrCb === "function") {
       cb = optionsOrCb;

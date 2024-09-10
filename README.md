@@ -491,6 +491,15 @@ h.div({ style: { color: "red" }, text: "Hello" });
 h.button({ text: "Click Me", click: myClickHandler });
 ```
 
+You can create a custom (non-standard) HTML element using the `h.custom` function. The options object must include a `nodeName` property.
+
+```typescript
+h.custom({ text: "Hello", nodeName: "my-element" }, () => {
+  h.comment("This is a custom element");
+});
+// Output: <my-element>Hello<!-- This is a custom element --></my-element>
+```
+
 ---
 
 ## Event Handling

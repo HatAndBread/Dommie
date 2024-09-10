@@ -8,10 +8,16 @@ export interface ComponentBaseInput {
   send: (event: string, data: any) => void;
   stateUpdater: (callback: Function) => (e?: Event, ...args: any[]) => Promise<void>;
 }
+
+interface Options {
+  [key: string]: any;
+}
+
 export interface Templater extends AllElements {
   component: (callback: (i: ComponentBaseInput) => any) => ComponentBase;
+  custom: ElementInput;
 }
-type ElementInput = (...args: any) => Templater;
+type ElementInput = (...args: any) => void;
 
 export interface AllElements {
   a: ElementInput;
