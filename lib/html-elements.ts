@@ -154,6 +154,33 @@ const selfClosingElements = [
   "wbr",
 ];
 
+export const booleanAttributes = [
+  "allowfullscreen",
+  "async",
+  "autofocus",
+  "autoplay",
+  "checked",
+  "controls",
+  "default",
+  "defer",
+  "disabled",
+  "formnovalidate",
+  "inert",
+  "ismap",
+  "itemscope",
+  "loop",
+  "multiple",
+  "muted",
+  "nomodule",
+  "novalidate",
+  "open",
+  "playsinline",
+  "readonly",
+  "required",
+  "reversed",
+  "selected",
+];
+
 const isSelfClosing = (tag: string) => selfClosingElements.includes(tag);
 
 export { allHtmlElements, isSelfClosing };

@@ -1,7 +1,7 @@
 import type { Templater } from "./types";
 import { allEventListeners } from "./all-event-listeners";
 import { toSnakeCase } from "./strings";
-import { allHtmlElements } from "./html-elements";
+import { allHtmlElements, booleanAttributes } from "./html-elements";
 import { DiffDOM } from "diff-dom";
 
 const COMPONENT_TAG = "component";
@@ -90,6 +90,7 @@ export function templateBuilder(root: HTMLElement) {
       }
     };
     if (!optionsOrCb) optionsOrCb = {};
+
     for (let key in optionsOrCb) {
       const context: Context = {
         element,
@@ -118,6 +119,10 @@ export function templateBuilder(root: HTMLElement) {
         handleEventListeners(context);
       } else if (key === "ref") {
         handleRefs(context);
+      } else if (booleanAttributes.includes(key)) {
+        if (optionsOrCb[key]) {
+          element.setAttribute(key, "");
+        }
       } else {
         element.setAttribute(
           key,
@@ -125,6 +130,7 @@ export function templateBuilder(root: HTMLElement) {
         );
       }
     }
+
     if (typeof cb === "function") {
       nesting.push(element);
       if (tag === COMPONENT_TAG) {
