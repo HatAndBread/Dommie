@@ -19,9 +19,20 @@ const child: Component = (h, initialSomeOtherValue: number) => {
       console.log("I am destroyed");
     });
 
+    let thing = 1;
+    const click = stateUpdater((_: Event, i: number) => {
+      console.log(i);
+      thing++;
+    });
+
     const { div, text, h1, input } = h;
     div(() => {
       div(() => {
+        div({ subscribe: click }, () => {
+          for (let x = 0; x < thing; x++) {
+            h.button({ text: `Button ${x}`, click: [click, [x]] });
+          }
+        });
         text("I am the CHILD 👶");
         h1({ subscribe: updateInputValue }, () => {
           text(inputValue);

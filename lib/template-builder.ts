@@ -209,17 +209,15 @@ const handleEventListeners = (context: Context) => {
   } else {
     throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
   }
-  const funcIndex = listenerList.findIndex((l) => l?.originalCallback === func);
-  element.dataset.listenerIndex = (funcIndex === -1 ? listenerList.length : funcIndex).toString();
-  if (funcIndex === -1) {
-    listenerList.push({
-      eventType: key,
-      callback: async (e: Event) => await func(e, args),
-      originalCallback: func,
-    });
-  }
+  element.dataset.listenerIndex = listenerList.length.toString();
+  const callback = async (e: Event) => await func(e, args);
+  listenerList.push({
+    eventType: key,
+    callback,
+    originalCallback: func,
+  });
   if (shouldAppend) {
-    element.addEventListener(key, async (e) => await func(e, args));
+    element.addEventListener(key, callback);
   }
 };
 
@@ -292,7 +290,7 @@ const getStateUpdater = () => {
         // This function wraps all subscriber functions
 
         // Create a new instance of the diffDOM library
-        const { config, afterDestroys, needListeners } = getDomDiffConfig(
+        const { config, afterDestroys, needListeners, needListenersRemoved } = getDomDiffConfig(
           afterDestroyCallbacks,
           messagesList,
         );
@@ -324,6 +322,18 @@ const getStateUpdater = () => {
             domDiffer.apply(oldEl, diff);
           }
           newEl.remove();
+          needListenersRemoved.forEach(([oldValue, newValue]) => {
+            const listenerToRemove = listenerList[parseInt(oldValue)];
+            let elToRemoveListenerFrom = oldEl.querySelector(
+              "[data-listener-index='" + newValue + "']",
+            );
+            if (elToRemoveListenerFrom && listenerToRemove) {
+              elToRemoveListenerFrom.removeEventListener(
+                listenerToRemove.eventType,
+                listenerToRemove.callback,
+              );
+            }
+          });
           needListeners.forEach((index) => {
             const listener = listenerList[parseInt(index)];
             if (listener) {
@@ -360,6 +370,7 @@ const getDomDiffConfig = (
   messagesList: MessagesList,
 ) => {
   const needListeners: string[] = []; // Elements that need event listeners re-applied
+  const needListenersRemoved: [string, string][] = []; // Elements that need event listeners removed
   const afterDestroys: Function[] = []; // After Destroy callbacks to be executed after the diff is applied
 
   const config = {
@@ -376,6 +387,11 @@ const getDomDiffConfig = (
           });
         };
         findListenersIndex(d.diff?.element);
+      } else if (d.diff?.action === "modifyAttribute" && d.diff?.name === "data-listener-index") {
+        const addIndex = d.diff?.newValue;
+        const removeIndex = d.diff?.oldValue;
+        needListenersRemoved.push([removeIndex, addIndex]);
+        needListeners.push(addIndex);
       } else if (d.diff?.action === "removeElement") {
         const isComponent = d.node?.nodeName === COMPONENT_TAG.toUpperCase();
         const elId = d.node?.attributes?.id;
@@ -395,7 +411,7 @@ const getDomDiffConfig = (
       }
     },
   };
-  return { config, afterDestroys, needListeners };
+  return { config, afterDestroys, needListeners, needListenersRemoved };
 };
 
 export class ComponentBase {
