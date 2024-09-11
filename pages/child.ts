@@ -3,8 +3,18 @@ import type { Component } from "../lib/app";
 const child: Component = (h, initialSomeOtherValue: number) => {
   let inputValue = "I am a text input";
   let someOtherValue = initialSomeOtherValue;
+  let sharedState = 0;
 
   return h.component(({ on, send, stateUpdater, afterMounted, afterDestroyed, ref }) => {
+    const updateSharedState = stateUpdater(() => {
+      sharedState++;
+      send("updateSharedState", sharedState);
+    });
+    const sharedStateUpdated = on(
+      "updateSharedState",
+      (newState: number) => (sharedState = newState),
+    );
+
     const updateSomeOtherValue = on("updateValue", (v: number) => (someOtherValue = v));
     const updateInputValue = stateUpdater((e: Event) => {
       inputValue = (e.target as HTMLInputElement).value;
@@ -25,9 +35,15 @@ const child: Component = (h, initialSomeOtherValue: number) => {
       thing++;
     });
 
-    const { div, text, h1, input } = h;
+    const { div, text, h1, input, button } = h;
     div(() => {
       div(() => {
+        button({
+          text: () => `Shared State: ${sharedState}`,
+          click: updateSharedState,
+          subscribe: [updateSharedState, sharedStateUpdated],
+        });
+
         div({ subscribe: click }, () => {
           for (let x = 0; x < thing; x++) {
             div({ id: x }, () => {

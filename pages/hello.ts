@@ -74,8 +74,17 @@ const t: Component = (h) => {
     });
 
   let inputValue = "I am not a text input";
+  let sharedState = 0;
 
   return h.component(({ on, send, stateUpdater, afterMounted }) => {
+    const updateSharedState = stateUpdater(() => {
+      sharedState++;
+      send("updateSharedState", sharedState);
+    });
+    const sharedStateUpdated = on(
+      "updateSharedState",
+      (newState: number) => (sharedState = newState),
+    );
     const updateWidth = stateUpdater(() => (width += 1));
     const updateWord = stateUpdater(() => {
       const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
@@ -113,6 +122,11 @@ const t: Component = (h) => {
         style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
       },
       () => {
+        button({
+          text: () => `Shared State: ${sharedState}`,
+          click: updateSharedState,
+          subscribe: [updateSharedState, sharedStateUpdated],
+        });
         a({ href: "https://www.google.com" }, () => {
           text("I am a link");
         });
