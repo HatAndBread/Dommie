@@ -135,7 +135,7 @@ export function templateBuilder(root: HTMLElement) {
       nesting.push(element);
       if (tag === COMPONENT_TAG) {
         const on = getOn(stateUpdater, element.id, messagesList);
-        const send = getSend(messagesList);
+        const send = getSend(messagesList, element.id);
         const afterMounted = (cb: () => void) => {
           afterMountCallbacks[element.id] = cb;
         };
@@ -266,10 +266,15 @@ const getOn = (
   };
 };
 
-const getSend = (messages: { event: string; callback: Function }[]) => {
+const getSend = (
+  messages: { event: string; callback: Function; componentId: string }[],
+  componentId: string,
+) => {
   return (event: string, data: any) => {
     messages.forEach((message) => {
-      if (message.event === event) {
+      if (message.event === event && message.componentId !== componentId) {
+        console.log("Hey here is message!");
+        console.log(message);
         message.callback(data);
       }
     });

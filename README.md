@@ -184,6 +184,58 @@ export const child: Component = (h, defaultValue: number) => {
 };
 ```
 
+## Loops
+
+You can use any iterable object in Dommie to create loops. This includes arrays, strings, and custom iterable objects.
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div } = h;
+  const names = ["Alice", "Bob", "Charlie"];
+
+  return h.component(() => {
+    div(() => {
+      for (const name of names) {
+        div({ text: name });
+      }
+    });
+  });
+};
+
+app(hello, "#app");
+```
+
+When loops refer to state, you MUST give the looped element a unique ID. This is because Dommie uses the id to keep track of the elements in the loop and update them efficiently.
+
+```typescript
+import app from "dommie";
+import type { Component } from "dommie";
+
+const hello: Component = (h) => {
+  const { div, button } = h;
+  let count = 0;
+  const names = ["Alice", "Bob", "Charlie"];
+
+  return h.component(({ stateUpdater }) => {
+    const updateCount = stateUpdater(() => count++);
+
+    div(() => {
+      div({ subscribe: updateCount }, () => {
+        for (const name of names) {
+          div({ id: name, text: `${name}-${count}` });
+        }
+      });
+      button({ text: "Update Count", click: updateCount });
+    });
+  });
+};
+
+app(hello, "#app");
+```
+
 ## Lifecycle Hooks
 
 ### afterMounted

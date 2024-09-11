@@ -30,8 +30,10 @@ const child: Component = (h, initialSomeOtherValue: number) => {
       div(() => {
         div({ subscribe: click }, () => {
           for (let x = 0; x < thing; x++) {
-            h.button({ text: `Button ${x}`, click: [click, [x]] });
-            h.input({ type: "checkbox", checked: x % 2 === 0 });
+            div({ id: x }, () => {
+              h.button({ text: `Button ${x}`, click: [click, [x]] });
+              h.input({ type: "checkbox", checked: x % 2 === 0 });
+            });
           }
         });
         text("I am the CHILD 👶");
