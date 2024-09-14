@@ -1,8 +1,9 @@
 import type { Templater } from "./types";
 import { templateBuilder, ComponentBase } from "./template-builder";
 
-export type Component<T> = (h: Templater, props?: T) => ComponentBase;
-export default (i: Component<undefined>, el: string | HTMLElement) => {
+export type Component = (h: Templater, ...args: any) => ComponentBase;
+export type Template = Templater;
+export default (i: Component, el: string | HTMLElement) => {
   const element = typeof el === "string" ? document.querySelector(el) : el;
   if (!element && typeof el === "string") {
     const err = "No element found with css selector: " + el;

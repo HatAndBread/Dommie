@@ -1,8 +1,8 @@
 import app from "../lib/app.ts";
-import type { Templater } from "../lib/types.ts";
+import type { Template } from "../lib/app.ts";
 import { child } from "./child.ts";
 
-const t = (h: Templater) => {
+const t = (h: Template) => {
   const colors = [
     "blue",
     "green",

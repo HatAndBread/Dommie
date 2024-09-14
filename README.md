@@ -16,9 +16,9 @@ Write your UIs like this!
 
   ```typescript
   import app from "dommie";
-  import type { Templater } from "dommie";
+  import type { Template } from "dommie";
 
-  const myComponent = (h: Templater) => {
+  const myComponent = (h: Template) => {
     const { component, div, h1, text, a, br } = h;
 
     return component(() => {
@@ -57,9 +57,9 @@ A `state` object is created by calling the `state` function with an initial valu
 
 ```typescript
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const hello = (h: Templater) => {
+const hello = (h: Template) => {
   const { div, button, component } = h;
 
   return component(({ state }) => {
@@ -79,9 +79,9 @@ You can also subscribe to multiple states by passing an array of states to the `
 
 ```typescript
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const hello: Component = (h: Templater) => {
+const hello: Component = (h: Template) => {
   const { div, button, component } = h;
   return component(({ state }) => {
     const count = state(0);
@@ -107,9 +107,9 @@ The first argument of an event listener function is always an event object. If y
 
 ```typescript
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const hello = (h: Templater) => {
+const hello = (h: Template) => {
   const { div, button, component } = h;
 
   return component(({ state }) => {
@@ -137,9 +137,9 @@ You can use any iterable object in Dommie to create loops. This includes arrays,
 
 ```typescript
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const hello = (h: Templater) => {
+const hello = (h: Template) => {
   const { div, component } = h;
   const names = ["Alice", "Bob", "Charlie"];
 
@@ -159,9 +159,9 @@ When loops refer to state, you MUST give the looped element a unique ID. This is
 
 ```typescript
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const hello = (h: Templater) => {
+const hello = (h: Template) => {
   const { div, button, component } = h;
   const names = ["Alice", "Bob", "Charlie"];
 
@@ -191,9 +191,9 @@ The `afterMounted` lifecycle hook is called after the component has been mounted
 
 ```typescript
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const hello = (h: Templater) => {
+const hello = (h: Template) => {
   const { div, component } = h;
 
   return component(({ afterMounted, state }) => {
@@ -218,9 +218,9 @@ The `afterDestroyed` lifecycle hook is called after the component has been remov
 
 ```typescript
 import app from "dommie";
-import type { Templater} from "dommie";
+import type { Template} from "dommie";
 
-const hello = (h: Templater) => {
+const hello = (h: Template) => {
   const { div, component } = h;
 
   return component(({ state, afterDestroyed }) => {
@@ -245,9 +245,9 @@ Refs are a way to access the underlying DOM element of a component. You can crea
 
 ```typescript
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const hello = (h: Templater) => {
+const hello = (h: Template) => {
   return h.component(({ ref, afterMounted }) => {
     const inputRef = ref();
 
@@ -269,9 +269,9 @@ You can break up your components into smaller components and use them as childre
 
 ```typescript
 // components/Hello.ts
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 
-const Hello = (h: Templater) => {
+const Hello = (h: Template) => {
   const { div } = h;
   return div({ text: "Hello World!" });
 };
@@ -282,10 +282,10 @@ export default Hello;
 ```typescript
 // components/App.ts
 import app from "dommie";
-import type { Templater } from "dommie";
+import type { Template } from "dommie";
 import Hello from "./Hello";
 
-const App = (h: Templater) => {
+const App = (h: Template) => {
   const { div, component } = h;
   return component(() => {
     div(() => {

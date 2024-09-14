@@ -1,8 +1,7 @@
-import type { Component } from "../lib/app";
-import type { Templater } from "../lib/types";
+import type { Template } from "../lib/app";
 import type { StateObject } from "../lib/template-builder";
 
-const child = (h: Templater, catData: StateObject<string>) => {
+const child = (h: Template, catData: StateObject<string>) => {
   return h.component(({ afterMounted, afterDestroyed, ref, state }) => {
     const inputValue = state("I am a text input");
 
