@@ -1,6 +1,6 @@
 import type { Templater } from "./types";
 import { templateBuilder, ComponentBase } from "./template-builder";
-import type { StateObject } from "../build/template-builder";
+import type { StateObject } from "./template-builder";
 
 export type Component = (h: Templater, ...args: any) => ComponentBase;
 export type Template = Templater;
