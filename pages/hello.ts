@@ -94,6 +94,7 @@ const t = (h: Templater) => {
       stuff.update(arr);
     };
     const fetchCatData = async (e: Event) => {
+      console.log(e);
       catData.update("");
       const res = await fetch("https://meowfacts.herokuapp.com/");
       const data = await res.json();
