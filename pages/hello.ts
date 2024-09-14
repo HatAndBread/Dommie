@@ -1,10 +1,8 @@
 import app from "../lib/app.ts";
-import type { Component } from "../lib/app.ts";
+import type { Templater } from "../lib/types.ts";
 import { child } from "./child.ts";
 
-const t: Component = (h) => {
-  let width = 100;
-  const stuff: number[] = [];
+const t = (h: Templater) => {
   const colors = [
     "blue",
     "green",
@@ -12,7 +10,6 @@ const t: Component = (h) => {
     "purple",
     "orange",
     "pink",
-    "black",
     "white",
     "gray",
     "brown",
@@ -59,137 +56,111 @@ const t: Component = (h) => {
     "black",
   ];
 
-  let word = "🥓";
-
-  let value = 0;
-
-  let catData = "";
-  let fetchingCatData = false;
-
-  let someBool = true;
-
   const thing = (text: string) =>
     h.div(() => {
       h.text(`I am ${text}`);
     });
 
-  let inputValue = "I am not a text input";
-  let sharedState = 0;
+  return h.component(({ afterMounted, state }) => {
+    const width = state(100);
+    const updateWidth = () => {
+      width.update(width.value + 1);
+    };
 
-  return h.component(({ on, send, stateUpdater, afterMounted }) => {
-    const updateSharedState = stateUpdater(() => {
-      sharedState++;
-      send("updateSharedState", sharedState);
-    });
-    const sharedStateUpdated = on(
-      "updateSharedState",
-      (newState: number) => (sharedState = newState),
-    );
-    const updateWidth = stateUpdater(() => (width += 1));
-    const updateWord = stateUpdater(() => {
+    const getRandomWord = () => {
       const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];
-      word = words[Math.floor(Math.random() * words.length)];
+      return words[Math.floor(Math.random() * words.length)];
+    };
+    const word = state(getRandomWord());
+    const updateWord = () => {
+      word.update(getRandomWord());
       updateWidth();
-    });
-    const updateValue = stateUpdater((_: Event, n: number) => {
-      value += n;
-      send("updateValue", value);
-    });
-    const toggleBool = stateUpdater(() => (someBool = !someBool));
-    const addToStuff = stateUpdater((e: Event) => {
-      stuff.push((stuff[stuff.length - 1] || 0) + 11);
-    });
-    const toggleFetchingCatData = stateUpdater(() => {
-      fetchingCatData = !fetchingCatData;
-    });
-    const fetchCatData = stateUpdater(async (e: Event) => {
-      toggleFetchingCatData(e);
+    };
+    const value = state(0);
+
+    const catData = state("");
+
+    const someBool = state(true);
+
+    const updateValue = (_: Event, n: number) => {
+      value.update(value.value + n);
+    };
+    const toggleBool = () => someBool.update(!someBool.value);
+    const stuff = state<number[]>([]);
+
+    const addToStuff = (e: Event) => {
+      const arr = [...stuff.value];
+      arr.push((arr[arr.length - 1] || 0) + 11);
+      stuff.update(arr);
+    };
+    const fetchCatData = async (e: Event) => {
+      catData.update("");
       const res = await fetch("https://meowfacts.herokuapp.com/");
       const data = await res.json();
-      catData = data.data[0];
-      toggleFetchingCatData(e);
-    });
+      catData.update(data.data[0]);
+    };
     afterMounted(fetchCatData);
 
-    const inputValueUpdated = on("inputValueChanged", (v: string) => {
-      inputValue = v;
-    });
-
     // template
-    const { div, img, button, a, text, br, ul, li, comment } = h;
+    const { div, button, a, text, br, ul, li, comment } = h;
     div(
       {
         style: { backgroundColor: () => colors[Math.floor(Math.random() * colors.length)] },
       },
       () => {
-        button({
-          text: () => `Shared State: ${sharedState}`,
-          click: updateSharedState,
-          subscribe: [updateSharedState, sharedStateUpdated],
-        });
         a({ href: "https://www.google.com" }, () => {
           text("I am a link");
         });
-        div({ subscribe: inputValueUpdated }, () => {
-          img({
-            src: "https://picsum.photos/200/200",
-            width: 200,
-            height: 200,
-          });
-        });
-        div({ subscribe: inputValueUpdated }, () => {
-          text(inputValue);
-        });
         div(() => {
           text("This is one instance of a child");
-          child(h, value);
+          child(h, catData);
         });
         div(() => {
           text("This is another instance of a child");
-          child(h, value);
+          child(h, catData);
         });
-        div({ subscribe: updateWord }, () => {
-          text(word);
+        div({ subscribe: word }, () => {
+          text(word.value);
         });
         h.custom({ nodeName: "custom-node", text: "I am a custom node!" });
         h.br();
         button({ click: updateWord, text: "Change word" });
-        div({ subscribe: [toggleFetchingCatData, fetchCatData] }, () => {
-          text(fetchingCatData ? "Fetching cat data..." : catData);
+        div({ subscribe: [catData] }, () => {
+          text(catData.value ? catData.value : "Fetching cat data...");
         });
         button({ click: fetchCatData }, () => {
           text("Fetch cat data");
         });
-        div({ subscribe: [toggleBool] }, () => {
-          if (!someBool) {
+        div({ subscribe: [someBool] }, () => {
+          if (!someBool.value) {
             button({ click: toggleBool }, () => {
               text("someBool is false");
             });
           }
         });
-        div({ subscribe: toggleBool }, () => {
-          if (someBool) {
-            child(h, value);
+        div({ subscribe: someBool }, () => {
+          if (someBool.value) {
+            child(h, catData);
           }
         });
         text("I am some text");
         br();
         text("I am some more text");
-        div({ subscribe: toggleBool }, () => {
-          if (someBool) {
+        div({ subscribe: someBool }, () => {
+          if (someBool.value) {
             button({ click: toggleBool }, () => {
               text("someBool is true");
             });
           }
         });
-        div({ subscribe: updateValue }, () => {
-          text(value);
+        div({ subscribe: value }, () => {
+          text(value.value);
         });
         button({ click: [updateValue, [1]], text: "Increment" });
         button({ click: [updateValue, [-1]], text: "Decrement" });
         thing("baka");
-        button({ click: addToStuff, subscribe: addToStuff }, () => {
-          text("Add to stuff" + stuff.length);
+        button({ click: addToStuff, subscribe: stuff }, () => {
+          text("Add to stuff" + stuff.value.length);
         });
         thing("Aho");
         ul(
@@ -197,10 +168,10 @@ const t: Component = (h) => {
             style: {
               backgroundColor: () => colors[Math.floor(Math.random() * colors.length)],
             },
-            subscribe: addToStuff,
+            subscribe: stuff,
           },
           () => {
-            stuff.forEach((thing) => {
+            stuff.value.forEach((thing) => {
               li({
                 style: {
                   backgroundColor: colors[Math.floor(Math.random() * colors.length)],
@@ -214,11 +185,11 @@ const t: Component = (h) => {
           {
             style: {
               backgroundColor: "pink",
-              width: () => `${width}px`,
+              width: () => `${width.value}px`,
               height: "100px",
             },
-            class: () => `${width}`,
-            subscribe: updateWidth,
+            class: () => `${width.value}`,
+            subscribe: width,
             mousemove: updateWidth,
           },
           () => {

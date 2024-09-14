@@ -5,7 +5,7 @@ import { allHtmlElements, booleanAttributes } from "./html-elements";
 import { DiffDOM } from "diff-dom";
 
 const COMPONENT_TAG = "component";
-const COMPONENT_ID_PREFIX = "ghost-component-";
+const COMPONENT_ID_PREFIX = "dommie-component-";
 
 type Context = {
   element: HTMLElement;
@@ -20,8 +20,6 @@ type Context = {
   listenerList: ListenerList;
   $: (tag: string, optionsOrCb: any, cb?: any, shouldAppend?: boolean) => Comment | HTMLElement;
 };
-
-type MessagesList = { event: string; callback: Function; componentId: string }[];
 
 let componentId = 0;
 export function templateBuilder(root: HTMLElement) {
@@ -41,7 +39,6 @@ export function templateBuilder(root: HTMLElement) {
     functionSubscribersMap,
     listenerList,
     stateUpdater,
-    messagesList,
     afterMountCallbacks,
     afterDestroyCallbacks,
   } = getStateUpdater();
@@ -134,15 +131,14 @@ export function templateBuilder(root: HTMLElement) {
     if (typeof cb === "function") {
       nesting.push(element);
       if (tag === COMPONENT_TAG) {
-        const on = getOn(stateUpdater, element.id, messagesList);
-        const send = getSend(messagesList, element.id);
+        const state = getState(stateUpdater);
         const afterMounted = (cb: () => void) => {
           afterMountCallbacks[element.id] = cb;
         };
         const afterDestroyed = (cb: () => void) => {
           afterDestroyCallbacks[element.id] = cb;
         };
-        cb({ on, send, stateUpdater, afterMounted, afterDestroyed, ref });
+        cb({ afterMounted, afterDestroyed, ref, state });
       } else {
         cb();
       }
@@ -178,10 +174,14 @@ const handleSubscription = (context: Context) => {
       value.forEach((v) => {
         if (typeof v === "function") {
           funcs.push(v);
+        } else if (typeof v === "object" && typeof v._updater === "function") {
+          funcs.push(v._updater);
         } else {
           throw new Error("Subscription array must contain only functions");
         }
       });
+    } else if (typeof value === "object" && typeof value._updater === "function") {
+      funcs.push(value._updater);
     }
     funcs.forEach((f) => {
       const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
@@ -196,6 +196,7 @@ const handleSubscription = (context: Context) => {
   }
 };
 
+let listenerId = 0;
 const handleEventListeners = (context: Context) => {
   const { listenerList, element, value, shouldAppend, key } = context;
   const eventDefinition = value;
@@ -215,13 +216,16 @@ const handleEventListeners = (context: Context) => {
   } else {
     throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
   }
-  element.dataset.listenerIndex = listenerList.length.toString();
-  const callback = async (e: Event) => await func(e, args);
-  listenerList.push({
+  const myListenerId = listenerId.toString();
+  element.dataset.listenerIndex = myListenerId;
+  listenerId++;
+  const callback = async (e: Event) => await func(e, ...args);
+  const listener = {
     eventType: key,
     callback,
     originalCallback: func,
-  });
+  };
+  listenerList.set(myListenerId, listener);
   if (shouldAppend) {
     element.addEventListener(key, callback);
   }
@@ -250,66 +254,57 @@ const handleRefs = ({ value, element }: Context) => {
   value(element);
 };
 
-const getOn = (
-  stateUpdater: Function,
-  componentId: string,
-  messages: { event: string; callback: Function; componentId: string }[],
-) => {
-  return (event: string, callback: Function) => {
-    const updater = stateUpdater(() => {});
-    const wrapper = (...args: any[]) => {
-      callback(...args);
-      updater();
-    };
-    messages.push({ componentId, event, callback: wrapper });
-    return updater;
-  };
-};
-
-const getSend = (
-  messages: { event: string; callback: Function; componentId: string }[],
-  componentId: string,
-) => {
-  return (event: string, data: any) => {
-    messages.forEach((message) => {
-      if (message.event === event && message.componentId !== componentId) {
-        console.log("Hey here is message!");
-        console.log(message);
-        message.callback(data);
-      }
-    });
-  };
-};
-
 type FuncSubscriberMap = Map<Function, [Element, () => HTMLElement | Comment][]>;
-type ListenerList = ({
-  eventType: string;
-  callback: (e: Event) => any;
-  originalCallback: Function;
-} | null)[];
+type ListenerList = Map<
+  string,
+  {
+    eventType: string;
+    callback: (e: Event) => any;
+    originalCallback: Function;
+  } | null
+>;
 
+const getState = (stateUpdater: StateUpdater) => {
+  const state = <T>(value: T) => {
+    const updater = stateUpdater();
+    const stateObject = {
+      get value() {
+        return value;
+      },
+      update(newValue: T) {
+        value = newValue;
+        updater();
+      },
+      get _updater() {
+        return updater;
+      },
+    };
+    return stateObject as StateObject<T>;
+  };
+  return state;
+};
+
+export type State = ReturnType<typeof getState>;
+export interface StateObject<T> {
+  value: T;
+  update: (newValue: T) => void;
+}
+type StateUpdater = () => (e?: Event, args?: any[]) => void;
 const getStateUpdater = () => {
-  const messagesList: MessagesList = [];
   const functionSubscribersMap: FuncSubscriberMap = new Map();
-  const listenerList: ListenerList = [];
+  const listenerList: ListenerList = new Map();
   const afterMountCallbacks: { [key: string]: Function } = {};
   const afterDestroyCallbacks: { [key: string]: Function } = {};
-  const stateUpdater = (callback: Function) => {
+  const stateUpdater: StateUpdater = () => {
     const getFuncWrapper = () => {
       const funcWrapper = async (e?: Event, args?: any[]) => {
         if (!args) args = [];
         // This function wraps all subscriber functions
 
         // Create a new instance of the diffDOM library
-        const { config, afterDestroys, needListeners, needListenersRemoved } = getDomDiffConfig(
-          afterDestroyCallbacks,
-          messagesList,
-        );
+        const { config, afterDestroys, needListeners, needListenersRemoved } =
+          getDomDiffConfig(afterDestroyCallbacks);
         const domDiffer = new DiffDOM(config);
-
-        // ** This is the function that will be called when the state is updated
-        await callback(e, ...args);
-        // *********************************************************************
 
         const subscribers = functionSubscribersMap.get(funcWrapper);
         subscribers?.forEach((subscriber) => {
@@ -334,7 +329,7 @@ const getStateUpdater = () => {
           }
           newEl.remove();
           needListenersRemoved.forEach(([oldValue, newValue]) => {
-            const listenerToRemove = listenerList[parseInt(oldValue)];
+            const listenerToRemove = listenerList.get(oldValue);
             let elToRemoveListenerFrom = oldEl.querySelector(
               "[data-listener-index='" + newValue + "']",
             );
@@ -344,9 +339,10 @@ const getStateUpdater = () => {
                 listenerToRemove.callback,
               );
             }
+            listenerList.delete(oldValue);
           });
           needListeners.forEach((index) => {
-            const listener = listenerList[parseInt(index)];
+            const listener = listenerList.get(index);
             if (listener) {
               let elToApplyListenerTo = oldEl.querySelector(
                 "[data-listener-index='" + index + "']",
@@ -370,16 +366,12 @@ const getStateUpdater = () => {
     functionSubscribersMap,
     listenerList,
     stateUpdater,
-    messagesList,
     afterMountCallbacks,
     afterDestroyCallbacks,
   };
 };
 
-const getDomDiffConfig = (
-  afterDestroyCallbacks: { [key: string]: Function },
-  messagesList: MessagesList,
-) => {
+const getDomDiffConfig = (afterDestroyCallbacks: { [key: string]: Function }) => {
   const needListeners: string[] = []; // Elements that need event listeners re-applied
   const needListenersRemoved: [string, string][] = []; // Elements that need event listeners removed
   const afterDestroys: Function[] = []; // After Destroy callbacks to be executed after the diff is applied
@@ -404,20 +396,10 @@ const getDomDiffConfig = (
         needListenersRemoved.push([removeIndex, addIndex]);
         needListeners.push(addIndex);
       } else if (d.diff?.action === "removeElement") {
-        const isComponent = d.node?.nodeName === COMPONENT_TAG.toUpperCase();
         const elId = d.node?.attributes?.id;
         // Get After Destroy callbacks for any components that are removed
         if (afterDestroyCallbacks[elId]) {
           afterDestroys.push(afterDestroyCallbacks[elId]);
-        }
-        // Clean up after component is removed from the dom
-        if (elId && isComponent) {
-          // remove all messages for this component
-          messagesList.forEach((message, i) => {
-            if (message.componentId === elId) {
-              messagesList.splice(i, 1);
-            }
-          });
         }
       }
     },

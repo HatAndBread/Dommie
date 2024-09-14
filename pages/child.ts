@@ -1,27 +1,15 @@
 import type { Component } from "../lib/app";
+import type { Templater } from "../lib/types";
+import type { StateObject } from "../lib/template-builder";
 
-const child: Component = (h, initialSomeOtherValue: number) => {
-  let inputValue = "I am a text input";
-  let someOtherValue = initialSomeOtherValue;
-  let sharedState = 0;
+const child = (h: Templater, catData: StateObject<string>) => {
+  return h.component(({ afterMounted, afterDestroyed, ref, state }) => {
+    const inputValue = state("I am a text input");
 
-  return h.component(({ on, send, stateUpdater, afterMounted, afterDestroyed, ref }) => {
-    const updateSharedState = stateUpdater(() => {
-      sharedState++;
-      send("updateSharedState", sharedState);
-    });
-    const sharedStateUpdated = on(
-      "updateSharedState",
-      (newState: number) => (sharedState = newState),
-    );
-
-    const updateSomeOtherValue = on("updateValue", (v: number) => (someOtherValue = v));
-    const updateInputValue = stateUpdater((e: Event) => {
-      inputValue = (e.target as HTMLInputElement).value;
-      send("inputValueChanged", inputValue);
-    });
+    const updateInputValue = (e: Event) => {
+      inputValue.update((e.target as HTMLInputElement).value);
+    };
     const inputRef = ref();
-    const otherRef = ref();
     afterMounted(() => {
       inputRef()?.focus();
     });
@@ -29,23 +17,24 @@ const child: Component = (h, initialSomeOtherValue: number) => {
       console.log("I am destroyed");
     });
 
-    let thing = 1;
-    const click = stateUpdater((_: Event, i: number) => {
+    const thing = state(1);
+    const click = (_: Event, i: number) => {
       console.log(i);
-      thing++;
-    });
+      thing.update(thing.value + 1);
+    };
+
+    const updateCatData = () => {
+      catData.update("🐯🐯🐯🐯🐯🐯🐯🐯🐯🐯🐯🐯");
+    };
 
     const { div, text, h1, input, button } = h;
     div(() => {
       div(() => {
-        button({
-          text: () => `Shared State: ${sharedState}`,
-          click: updateSharedState,
-          subscribe: [updateSharedState, sharedStateUpdated],
-        });
+        div({ subscribe: catData, text: () => catData.value });
+        button({ text: "Update Cat Data From Child", click: updateCatData });
 
-        div({ subscribe: click }, () => {
-          for (let x = 0; x < thing; x++) {
+        div({ subscribe: thing }, () => {
+          for (let x = 0; x < thing.value; x++) {
             div({ id: x }, () => {
               h.button({ text: `Button ${x}`, click: [click, [x]] });
               h.input({ type: "checkbox", checked: x % 2 === 0 });
@@ -53,17 +42,14 @@ const child: Component = (h, initialSomeOtherValue: number) => {
           }
         });
         text("I am the CHILD 👶");
-        h1({ subscribe: updateInputValue }, () => {
-          text(inputValue);
-        });
-        h1({ subscribe: updateSomeOtherValue, ref: otherRef }, () => {
-          text(someOtherValue);
+        h1({ subscribe: inputValue }, () => {
+          text(inputValue.value);
         });
         input({
           ref: inputRef,
           type: "text",
-          value: () => inputValue,
-          subscribe: updateInputValue,
+          value: () => inputValue.value,
+          subscribe: inputValue,
           input: updateInputValue,
         });
       });

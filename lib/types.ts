@@ -1,16 +1,11 @@
 import { ComponentBase } from "./template-builder";
+import type { State } from "./template-builder";
 
 export interface ComponentBaseInput {
   afterDestroyed: (callback: Function) => void;
   afterMounted: (callback: Function) => void;
-  on: (event: string, callback: Function) => Function;
   ref: () => () => HTMLElement | null;
-  send: (event: string, data: any) => void;
-  stateUpdater: (callback: Function) => (e?: Event, ...args: any[]) => Promise<void>;
-}
-
-interface Options {
-  [key: string]: any;
+  state: State;
 }
 
 export interface Templater extends AllElements {
