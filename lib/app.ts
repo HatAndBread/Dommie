@@ -1,8 +1,10 @@
 import type { Templater } from "./types";
 import { templateBuilder, ComponentBase } from "./template-builder";
+import type { StateObject } from "../build/template-builder";
 
 export type Component = (h: Templater, ...args: any) => ComponentBase;
 export type Template = Templater;
+export type State<T> = StateObject<T>;
 export default (i: Component, el: string | HTMLElement) => {
   const element = typeof el === "string" ? document.querySelector(el) : el;
   if (!element && typeof el === "string") {
