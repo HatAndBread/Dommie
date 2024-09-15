@@ -19,7 +19,7 @@ Dommie is designed for developers who need a simple yet powerful way to build re
 
 - Simple API: Minimalistic and intuitive for quick integration.
 - Flexible: Works seamlessly with modern build tools like Vite, Webpack, and Rollup.
-- Efficient: Virtual DOM diffing ensures fast and optimized updates.
+- Performant: Dommie's state subscription model ensures only necessary updates are made to the DOM.
 
 ## Installation
 
