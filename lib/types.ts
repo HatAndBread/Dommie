@@ -1,17 +1,19 @@
 import { ComponentBase } from "./template-builder";
-import type { State } from "./template-builder";
+import type { State, StateSubscriber } from "./template-builder";
 
 export interface ComponentBaseInput {
   afterDestroyed: (callback: Function) => void;
   afterMounted: (callback: Function) => void;
   ref: () => () => HTMLElement | null;
   state: State;
+  subscribe: StateSubscriber;
 }
 
 export interface Templater extends AllElements {
   component: (callback: (i: ComponentBaseInput) => any) => ComponentBase;
   custom: ElementInput;
 }
+export type StateSubscriptions = Map<Function, { [key: string]: Function[] }>;
 type ElementInput = (...args: any) => void;
 
 export interface AllElements {

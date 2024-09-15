@@ -61,11 +61,15 @@ const t = (h: Template) => {
       h.text(`I am ${text}`);
     });
 
-  return h.component(({ afterMounted, state }) => {
+  return h.component(({ afterMounted, state, subscribe }) => {
     const width = state(100);
     const updateWidth = () => {
       width.update(width.value + 1);
     };
+
+    subscribe(() => {
+      console.log("I am a subscribed to width. It changed");
+    }, [width]);
 
     const getRandomWord = () => {
       const words = ["🥓", "🍳", "🥞", "🥩", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮"];

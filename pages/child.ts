@@ -1,12 +1,17 @@
 import type { Template, State } from "../lib/app";
 
 const child = (h: Template, catData: State<string>) => {
-  return h.component(({ afterMounted, afterDestroyed, ref, state }) => {
+  return h.component(({ afterMounted, afterDestroyed, ref, state, subscribe }) => {
     const inputValue = state("I am a text input");
 
     const updateInputValue = (e: Event) => {
       inputValue.update((e.target as HTMLInputElement).value);
     };
+
+    subscribe(() => {
+      console.log("I am a subscribed to inputValue. It changed");
+    }, [inputValue]);
+
     const inputRef = ref();
     afterMounted(() => {
       inputRef()?.focus();

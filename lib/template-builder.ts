@@ -1,4 +1,4 @@
-import type { Templater } from "./types";
+import type { Templater, StateSubscriptions } from "./types";
 import { allEventListeners } from "./all-event-listeners";
 import { toSnakeCase } from "./strings";
 import { allHtmlElements, booleanAttributes } from "./html-elements";
@@ -41,6 +41,7 @@ export function templateBuilder(root: HTMLElement) {
     stateUpdater,
     afterMountCallbacks,
     afterDestroyCallbacks,
+    stateSubscriptions,
   } = getStateUpdater();
   const nesting = [root];
   function $(tag: string, optionsOrCb: any, cb?: any, shouldAppend = true) {
@@ -131,14 +132,15 @@ export function templateBuilder(root: HTMLElement) {
     if (typeof cb === "function") {
       nesting.push(element);
       if (tag === COMPONENT_TAG) {
-        const state = getState(stateUpdater);
+        const state = getState(stateUpdater, stateSubscriptions);
         const afterMounted = (cb: () => void) => {
           afterMountCallbacks[element.id] = cb;
         };
         const afterDestroyed = (cb: () => void) => {
           afterDestroyCallbacks[element.id] = cb;
         };
-        cb({ afterMounted, afterDestroyed, ref, state });
+        const subscribe = getSubscribe(element.id, stateSubscriptions);
+        cb({ afterMounted, afterDestroyed, ref, state, subscribe });
       } else {
         cb();
       }
@@ -264,7 +266,7 @@ type ListenerList = Map<
   } | null
 >;
 
-const getState = (stateUpdater: StateUpdater) => {
+const getState = (stateUpdater: StateUpdater, stateSubscriptions: StateSubscriptions) => {
   const state = <T>(value: T) => {
     const updater = stateUpdater();
     const stateObject = {
@@ -274,6 +276,12 @@ const getState = (stateUpdater: StateUpdater) => {
       update(newValue: T) {
         value = newValue;
         updater();
+        const subs = stateSubscriptions.get(updater);
+        if (subs) {
+          Object.values(subs).forEach((funcArray) => {
+            funcArray.forEach((func) => func());
+          });
+        }
       },
       get _updater() {
         return updater;
@@ -283,6 +291,29 @@ const getState = (stateUpdater: StateUpdater) => {
   };
   return state;
 };
+
+const getSubscribe = (componentId: string, stateSubscriptions: StateSubscriptions) => {
+  const subscribe = (callback: () => void, states: StateObject<any>[]) => {
+    states.forEach((state) => {
+      // @ts-ignore
+      if (stateSubscriptions.get(state._updater)) {
+        // @ts-ignore
+        if (stateSubscriptions.get(state._updater)![componentId]) {
+          // @ts-ignore
+          stateSubscriptions.get(state._updater)![componentId].push(callback);
+        } else {
+          // @ts-ignore
+          stateSubscriptions.get(state._updater)![componentId] = [callback];
+        }
+      } else {
+        // @ts-ignore
+        stateSubscriptions.set(state._updater, { [componentId]: [callback] });
+      }
+    });
+  };
+  return subscribe;
+};
+export type StateSubscriber = ReturnType<typeof getSubscribe>;
 
 export type State = ReturnType<typeof getState>;
 export interface StateObject<T> {
@@ -295,6 +326,7 @@ const getStateUpdater = () => {
   const listenerList: ListenerList = new Map();
   const afterMountCallbacks: { [key: string]: Function } = {};
   const afterDestroyCallbacks: { [key: string]: Function } = {};
+  const stateSubscriptions: StateSubscriptions = new Map();
   const stateUpdater: StateUpdater = () => {
     const getFuncWrapper = () => {
       const funcWrapper = async (e?: Event, args?: any[]) => {
@@ -302,7 +334,7 @@ const getStateUpdater = () => {
         // This function wraps all subscriber functions
 
         // Create a new instance of the diffDOM library
-        const { config, afterDestroys, needListeners, needListenersRemoved } =
+        const { config, afterDestroys, needListeners, needListenersRemoved, removedComponents } =
           getDomDiffConfig(afterDestroyCallbacks);
         const domDiffer = new DiffDOM(config);
 
@@ -355,6 +387,14 @@ const getStateUpdater = () => {
         });
         // Exectute destroy callbacks
         afterDestroys.forEach((cb) => setTimeout(cb));
+        // Remove "subscriptions" (state effects) from removed components
+        removedComponents.forEach((id) => {
+          stateSubscriptions.forEach((subs) => {
+            if (subs[id]) {
+              delete subs[id];
+            }
+          });
+        });
       };
       return funcWrapper;
     };
@@ -364,6 +404,7 @@ const getStateUpdater = () => {
   };
   return {
     functionSubscribersMap,
+    stateSubscriptions,
     listenerList,
     stateUpdater,
     afterMountCallbacks,
@@ -375,6 +416,7 @@ const getDomDiffConfig = (afterDestroyCallbacks: { [key: string]: Function }) =>
   const needListeners: string[] = []; // Elements that need event listeners re-applied
   const needListenersRemoved: [string, string][] = []; // Elements that need event listeners removed
   const afterDestroys: Function[] = []; // After Destroy callbacks to be executed after the diff is applied
+  let removedComponents: string[] = [];
 
   const config = {
     postVirtualDiffApply: function (d: any) {
@@ -401,10 +443,13 @@ const getDomDiffConfig = (afterDestroyCallbacks: { [key: string]: Function }) =>
         if (afterDestroyCallbacks[elId]) {
           afterDestroys.push(afterDestroyCallbacks[elId]);
         }
+        if (d.node?.nodeName === "COMPONENT" && elId) {
+          removedComponents.push(elId);
+        }
       }
     },
   };
-  return { config, afterDestroys, needListeners, needListenersRemoved };
+  return { config, afterDestroys, needListeners, needListenersRemoved, removedComponents };
 };
 
 export class ComponentBase {

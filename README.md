@@ -239,6 +239,32 @@ const hello = (h: Template) => {
 app(hello, "#app");
 ```
 
+## Side Effects
+Use the `subscribe` function provided in your component to run side effects when a state changes. `subscribe` takes a callback function and an array of states. The callback function is called whenever the state changes.
+
+```typescript
+import app from "dommie";
+import type { Template } from "dommie";
+
+const hello = (h: Template) => {
+  const { div, button, component } = h;
+
+  return component(({ state, subscribe }) => {
+    const count = state(0);
+    const updateCount = () => count.update(count.value + 1);
+    subscribe(() => {
+      // This will run whenever the count changes
+      console.log("Count has changed to", count.value);
+    }, [count]);
+
+    div({ subscribe: count, text: () => count.value });
+    button({ text: "Increment", click: updateCount });
+  });
+};
+
+app(hello, "#app");
+```
+
 ## Refs
 
 Refs are a way to access the underlying DOM element of a component. You can create a ref using the `ref` function and pass it to the `ref` property of an element. You can then access the DOM element using the ref function.
