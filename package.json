@@ -1,6 +1,6 @@
 {
   "name": "dommie",
-  "version": "2.1.1",
+  "version": "2.2.1",
   "module": "./build/app.js",
   "entrypoint": "./build/app.js",
   "types": "./build/app.d.ts",
