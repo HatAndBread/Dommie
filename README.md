@@ -3,16 +3,47 @@
 
 # Dommie
 
-A lightweight templating library that allows developers to build HTML elements dynamically, manage components with lifecycle hooks, handle subscriptions and state updates, and efficiently update the DOM using a virtual DOM diffing system powered by [DiffDOM](https://github.com/fiduswriter/diffDOM).
+**Dommie** is a lightweight templating library for building dynamic, reactive user interfaces. It offers:
+
+- Dynamic creation of HTML elements
+- Component management with lifecycle hooks
+- State and subscription handling
+- Efficient DOM updates using DiffDOM
+
+With Dommie, you can create snappy, performant UIs without the overhead of larger frameworks.
 
 ## Why Dommie?
-Dommie is designed for developers seeking a straightforward way to build reactive user interfaces without the overhead of larger frameworks. It’s perfect for small to medium-sized projects where simplicity and performance matter.
+Dommie is designed for developers who need a simple yet powerful way to build reactive UIs. It's a great fit for small to medium projects where simplicity, flexibility, and performance are key.
 
-Dommie integrates easily with modern build systems such as Vite, Webpack, and Rollup. Simply import Dommie into your project and start building reactive components.
+### Key Benefits:
 
-## Features
+- Simple API: Minimalistic and intuitive for quick integration.
+- Flexible: Works seamlessly with modern build tools like Vite, Webpack, and Rollup.
+- Efficient: Virtual DOM diffing ensures fast and optimized updates.
 
-Write your UIs like this!
+## Installation
+
+```bash
+npm install dommie
+```
+
+-- or --
+
+```bash
+yarn add dommie
+```
+
+-- or --
+
+```javascript
+import app from "https://unpkg.com/dommie@2.2.1/build/min/app.js"
+// Or use a script tag in your HTML file. Check the latest version on unpkg.com
+```
+etc.
+
+## Quick Start
+
+Here’s a simple example of how to use Dommie to build a component:
 
   ```typescript
   import app from "dommie";
@@ -34,26 +65,14 @@ Write your UIs like this!
   app(myComponent, "#app");
   ```
 
-## Installation
+## Example Apps
 
-```bash
-npm install dommie
-```
+The easiest way to learn Dommie is to look at some example apps. Here are a few examples to get you started:
 
--- or --
-
-```bash
-yarn add dommie
-```
-etc.
+- [Dommie World Weather App](https://github.com/HatAndBread/dommie-weather-example)
 
 ## Subscriptions
-
-Reactivity works by subscribing elements to state. When state is updated, all elements that are subscribed to the particular piece of state will be updated.
-`state` is passed into your component as a parameter (along with other useful lifecycle hooks and functions), and is the only way to update the state of your component.
-In the example below, the `div` element is subscribed to the `count` state, so it will be updated whenever the `update` method on count is called.
-
-A `state` object is created by calling the `state` function with an initial value. The `state` object has a `value` property that holds the current value of the state, and an `update` method that can be called to update the state.
+Dommie enables reactive UIs through a simple state and subscription model. When the state updates, subscribed elements re-render automatically.
 
 ```typescript
 import app from "dommie";
@@ -75,7 +94,7 @@ const hello = (h: Template) => {
 app(hello, "#app");
 ```
 
-You can also subscribe to multiple states by passing an array of states to the `subscribe` property.
+You can also subscribe multiple elements to different states, ensuring your UI stays in sync.
 
 ```typescript
 import app from "dommie";
@@ -133,7 +152,7 @@ You can pass state to a child component, and unlike many other libraries, the ch
 
 ## Loops
 
-You can use any iterable object in Dommie to create loops. This includes arrays, strings, and custom iterable objects.
+Dommie supports loops with any iterable, making it easy to dynamically generate lists of elements.
 
 ```typescript
 import app from "dommie";
@@ -155,7 +174,7 @@ const hello = (h: Template) => {
 app(hello, "#app");
 ```
 
-When loops refer to state, you MUST give the looped element a unique ID. This is because Dommie uses the id to keep track of the elements in the loop and update them efficiently.
+When using loops with dynamic state, don’t forget to assign unique IDs for efficient updates.
 
 ```typescript
 import app from "dommie";
@@ -291,7 +310,7 @@ app(hello, "#app");
 
 ## Child Components
 
-You can break up your components into smaller components and use them as children of other components. State can be passed down to child components, and child components can update the state of the parent component.
+Dommie allows you to break your UI into smaller components, which can pass and update state between parent and child components.
 
 ```typescript
 // components/Hello.ts
@@ -322,3 +341,7 @@ const App = (h: Template) => {
 
 app(App, "#app");
 ```
+
+## Get Involved
+
+**Dommie** is open-source and welcomes contributions. If you find bugs or have ideas for improvements, feel free to [https://github.com/hatandbread/dommie/issues](open an issue) or submit a pull request.
