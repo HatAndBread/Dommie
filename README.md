@@ -344,4 +344,4 @@ app(App, "#app");
 
 ## Get Involved
 
-**Dommie** is open-source and welcomes contributions. If you find bugs or have ideas for improvements, feel free to [https://github.com/hatandbread/dommie/issues](open an issue) or submit a pull request.
+**Dommie** is open-source and welcomes contributions. If you find bugs or have ideas for improvements, feel free to [open an issue](https://github.com/hatandbread/dommie/issues) or submit a pull request.
