@@ -8,7 +8,6 @@ test("An element subscribed to state that updates that same state is updated whe
 }) => {
   await page.goto(DEV_SERVER);
 
-  // Expect a title "to contain" a substring.
   const buttonText1 = await page.getByTestId("test-click").textContent();
   expect(buttonText1).toBe("0");
   await page.getByTestId("test-click").click();
@@ -24,11 +23,22 @@ test("An element that is subscribed to state and is not the element that initiat
 }) => {
   await page.goto(DEV_SERVER);
 
-  // Expect a title "to contain" a substring.
   const button = page.getByTestId("test-click2");
   const subscribedDivText1 = await page.getByTestId("test-click2-div").textContent();
   expect(subscribedDivText1).toBe("0");
   await button.click();
   const subscribedDivText2 = await page.getByTestId("test-click2-div").textContent();
   expect(subscribedDivText2).toBe("1");
+});
+
+test("State that is subscribed to the side effect of another state change is updated when the original changes", async ({
+  page,
+}) => {
+  await page.goto(DEV_SERVER);
+
+  const sideEffectDivText = await page.getByTestId("test-sideeffect-div").textContent();
+  expect(sideEffectDivText).toBe("Side Effect Example");
+  await page.getByTestId("test-click").click();
+  const sideEffectDivText2 = await page.getByTestId("test-sideeffect-div").textContent();
+  expect(sideEffectDivText2).toBe("It Changed");
 });
