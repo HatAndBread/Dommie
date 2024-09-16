@@ -50,3 +50,27 @@ test("It creates a component when an element is given", () => {
   const firstChild = document.getElementById("app")?.firstChild as HTMLElement;
   expect(firstChild.tagName).toBe("COMPONENT");
 });
+
+// test("It updates subscribed elements", () => {
+//   document.body.innerHTML = `<div id="app"></div>`;
+//   const input: Component = (h) => {
+//     return h.component(({ state }) => {
+//       const thing = state(1);
+//       const click = () => {
+//         thing.update(thing.value + 1);
+//       };
+//       const { div, button } = h;
+//       div({ subscribe: thing }, () => {
+//         button({ text: `${thing.value}`, click });
+//       });
+//     });
+//   };
+
+//   app(input, "#app");
+//   const button = document.querySelector("button") as HTMLButtonElement;
+//   expect(button.textContent).toBe("1");
+//   button.click();
+//   expect(button.textContent).toBe("2");
+//   button.click();
+//   expect(button.textContent).toBe("3");
+// });
