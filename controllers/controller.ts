@@ -15,7 +15,7 @@ export const controller = {
         </head>
         <body>
         <div id="app"></div>
-        <script type="text/javascript" src="./public/pages/hello.js"></script>
+        <script type="text/javascript" src="./public/pages/ui-test.js"></script>
         </body>
       </html>`,
 

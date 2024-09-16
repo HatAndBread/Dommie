@@ -48,8 +48,8 @@ const server = Bun.serve({
       const file = Bun.file("./public/client-lib/index.js");
       return new Response(file);
     }
-    if (pathname === "/public/pages/hello.js") {
-      const file = Bun.file("./public/pages/hello.js");
+    if (pathname === "/public/pages/ui-test.js") {
+      const file = Bun.file("./public/pages/ui-test.js");
       return new Response(file);
     }
     for (const [path, controller] of Object.entries(urlControllerMap)) {
