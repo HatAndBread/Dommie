@@ -42,3 +42,38 @@ test("State that is subscribed to the side effect of another state change is upd
   const sideEffectDivText2 = await page.getByTestId("test-sideeffect-div").textContent();
   expect(sideEffectDivText2).toBe("It Changed");
 });
+
+test("An element that is subscribed to a boolean state is toggled when the state changes", async ({
+  page,
+}) => {
+  await page.goto(DEV_SERVER);
+
+  const boolDiv = page.locator("#test-bool-div");
+  const boolButton = page.locator("#test-bool-btn");
+  await expect(boolDiv).toHaveCount(0);
+  await boolButton.click();
+  await expect(boolDiv).toHaveCount(1);
+  await boolButton.click();
+  await expect(boolDiv).toHaveCount(0);
+});
+
+test("An element that is subscribed to a list state is updated when the list state changes", async ({
+  page,
+}) => {
+  await page.goto(DEV_SERVER);
+
+  const listButton = page.locator("#test-list-btn");
+  const items = page.locator(".test-li");
+  const itemsCheckbox = page.locator(".test-li-checkbox");
+  await expect(items).toHaveCount(1);
+  await expect(itemsCheckbox).toHaveCount(1);
+  await expect(itemsCheckbox.first()).toBeChecked();
+  await listButton.click();
+  await expect(items).toHaveCount(4);
+  await expect(itemsCheckbox).toHaveCount(4);
+  await expect(itemsCheckbox.last()).not.toBeChecked();
+  await itemsCheckbox.last().click();
+  await expect(itemsCheckbox).toHaveCount(4);
+  await expect(itemsCheckbox.first()).toBeChecked();
+  await expect(itemsCheckbox.last()).toBeChecked();
+});

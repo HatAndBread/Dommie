@@ -17,13 +17,15 @@ const t = (h: Template) => {
     const testState1 = state(0);
     const testState2 = state(0);
     const testState3 = state("Side Effect Example");
+    const testBool = state(false);
+    const testList = state([true]);
 
     subscribe(() => {
       testState3.update("It Changed");
     }, [testState1]);
 
     // template
-    const { div, button, a, text, br, ul, li, comment } = h;
+    const { div, button, input, a, text, br, ul, li, comment } = h;
     div({ style: {} }, () => {
       button({
         "data-testid": "test-click",
@@ -41,6 +43,37 @@ const t = (h: Template) => {
       });
       div({ "data-testid": "test-sideeffect-div", subscribe: testState3 }, () => {
         text(testState3.value);
+      });
+      button({
+        id: "test-bool-btn",
+        click: () => testBool.update(!testBool.value),
+        text: "Toggle",
+      });
+      div({ subscribe: testBool }, () => {
+        if (testBool.value) {
+          div({ id: "test-bool-div", text: "I do not exist when test bool is false." });
+        }
+      });
+      button({
+        id: "test-list-btn",
+        click: () => testList.update([...testList.value, false, true, false]),
+        text: "Add to list",
+      });
+      ul({ subscribe: testList, id: "test-list-ul" }, () => {
+        testList.value.forEach((item, i) => {
+          li({ id: `test-list-item-${i}`, class: "test-li" }, () => {
+            input({
+              type: "checkbox",
+              checked: item,
+              class: `test-li-checkbox`,
+              click: () => {
+                const newList = [...testList.value];
+                newList[i] = !newList[i];
+                testList.update(newList);
+              },
+            });
+          });
+        });
       });
     });
   });

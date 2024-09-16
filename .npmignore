@@ -3,6 +3,10 @@ pages/
 node_modules/
 lib/
 controllers/
+tests/
+test-results/
+playwright-report/
+playwright.config.ts
 happydom.ts
 index.ts
 prettier.config.js
