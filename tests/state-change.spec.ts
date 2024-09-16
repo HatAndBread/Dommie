@@ -77,3 +77,14 @@ test("An element that is subscribed to a list state is updated when the list sta
   await expect(itemsCheckbox.first()).toBeChecked();
   await expect(itemsCheckbox.last()).toBeChecked();
 });
+
+test("An element with a ref is focused on", async ({ page }) => {
+  await page.goto(DEV_SERVER);
+
+  const input = page.locator("#ref-input");
+  await expect(input).toBeFocused();
+  const focusBtn = page.locator("#focus-btn");
+  await focusBtn.click();
+  const input2 = page.locator("#ref-input2");
+  await expect(input2).toBeFocused();
+});

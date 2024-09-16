@@ -3,7 +3,7 @@ import type { Template } from "../lib/app.ts";
 import { child } from "./child.ts";
 
 const t = (h: Template) => {
-  return h.component(({ afterMounted, state, subscribe }) => {
+  return h.component(({ afterMounted, state, subscribe, ref }) => {
     const catData = state("");
     const fetchCatData = async (e: Event) => {
       console.log(e);
@@ -19,10 +19,16 @@ const t = (h: Template) => {
     const testState3 = state("Side Effect Example");
     const testBool = state(false);
     const testList = state([true]);
+    const inputRef = ref();
+    const inputRef2 = ref();
 
     subscribe(() => {
       testState3.update("It Changed");
     }, [testState1]);
+
+    afterMounted(() => {
+      inputRef()?.focus();
+    });
 
     // template
     const { div, button, input, a, text, br, ul, li, comment } = h;
@@ -75,6 +81,9 @@ const t = (h: Template) => {
           });
         });
       });
+      button({ click: () => inputRef2()?.focus(), id: "focus-btn", text: "Focus" });
+      input({ type: "text", ref: inputRef, id: "ref-input" });
+      input({ type: "text", ref: inputRef2, id: "ref-input2" });
     });
   });
 };
