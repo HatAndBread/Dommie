@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 
-const PAGES_DIR = "./pages";
+const PAGES_DIR = "./test-pages";
 const LIB_DIR = "./lib";
 const CONTROLLER_DIR = "./controllers";
 
@@ -48,8 +48,8 @@ const server = Bun.serve({
       const file = Bun.file("./public/client-lib/index.js");
       return new Response(file);
     }
-    if (pathname === "/public/pages/ui-test.js") {
-      const file = Bun.file("./public/pages/ui-test.js");
+    if (pathname === "/public/test-pages/ui-test.js") {
+      const file = Bun.file("./public/test-pages/ui-test.js");
       return new Response(file);
     }
     for (const [path, controller] of Object.entries(urlControllerMap)) {
