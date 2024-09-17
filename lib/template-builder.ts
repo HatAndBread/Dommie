@@ -2,8 +2,9 @@ import type { Templater, StateSubscriptions } from "./types";
 import { allEventListeners } from "./all-event-listeners";
 import { toSnakeCase } from "./strings";
 import { allHtmlElements, booleanAttributes } from "./html-elements";
-import { routeGoer } from "./route";
+import { r } from "./route";
 import { DiffDOM } from "diff-dom";
+import { getDomDiffConfig } from "./dom-diff-config";
 
 const COMPONENT_TAG = "component";
 const COMPONENT_ID_PREFIX = "dommie-component-";
@@ -141,7 +142,7 @@ export function templateBuilder(root: HTMLElement) {
           afterDestroyCallbacks[element.id] = cb;
         };
         const subscribe = getSubscribe(element.id, stateSubscriptions);
-        cb({ afterMounted, afterDestroyed, ref, state, subscribe, r: routeGoer });
+        cb({ afterMounted, afterDestroyed, ref, state, subscribe, r });
       } else {
         cb();
       }
@@ -411,46 +412,6 @@ const getStateUpdater = () => {
     afterMountCallbacks,
     afterDestroyCallbacks,
   };
-};
-
-const getDomDiffConfig = (afterDestroyCallbacks: { [key: string]: Function }) => {
-  const needListeners: string[] = []; // Elements that need event listeners re-applied
-  const needListenersRemoved: [string, string][] = []; // Elements that need event listeners removed
-  const afterDestroys: Function[] = []; // After Destroy callbacks to be executed after the diff is applied
-  let removedComponents: string[] = [];
-
-  const config = {
-    postVirtualDiffApply: function (d: any) {
-      if (d.diff?.action === "addElement") {
-        // Find all elements that need event listeners re-applied
-        const findListenersIndex = (el: any) => {
-          const index = el?.attributes?.["data-listener-index"];
-          if (index) {
-            needListeners.push(index);
-          }
-          el?.childNodes?.forEach((child: any) => {
-            findListenersIndex(child);
-          });
-        };
-        findListenersIndex(d.diff?.element);
-      } else if (d.diff?.action === "modifyAttribute" && d.diff?.name === "data-listener-index") {
-        const addIndex = d.diff?.newValue;
-        const removeIndex = d.diff?.oldValue;
-        needListenersRemoved.push([removeIndex, addIndex]);
-        needListeners.push(addIndex);
-      } else if (d.diff?.action === "removeElement") {
-        const elId = d.node?.attributes?.id;
-        // Get After Destroy callbacks for any components that are removed
-        if (afterDestroyCallbacks[elId]) {
-          afterDestroys.push(afterDestroyCallbacks[elId]);
-        }
-        if (d.node?.nodeName === "COMPONENT" && elId) {
-          removedComponents.push(elId);
-        }
-      }
-    },
-  };
-  return { config, afterDestroys, needListeners, needListenersRemoved, removedComponents };
 };
 
 export class ComponentBase {

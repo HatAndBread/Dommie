@@ -11,11 +11,11 @@ export const controller = {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <meta http-equiv="X-UA-Compatible" content="ie=edge">
-          <title>Ghost UI Test</title>
+          <title>Dommie Test</title>
         </head>
         <body>
         <div id="app"></div>
-        <script type="text/javascript" src="./public/test-pages/ui-test.js"></script>
+        <script type="text/javascript" src="/public/test-pages/ui-test.js"></script>
         </body>
       </html>`,
 

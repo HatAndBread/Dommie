@@ -6,7 +6,17 @@ export type Routes = {
   [key: string]: (h: Templater, ...args: any) => ComponentBase;
 };
 
+export const r = {
+  go: (path: string) => {
+    console.error("Dommie router.go() was called before the router was initialized.");
+  },
+  pathVariables: [] as string[],
+};
+
+export type R = typeof r;
+
 const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
+  r.pathVariables = [];
   let found = false;
 
   // Exact route
@@ -23,16 +33,19 @@ const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
   const urlParts = window.location.pathname.split("/");
   urlParts.shift();
   const wildcard = "*";
+  const pathVariables = [];
   keysLoop: for (const key in routes) {
     const parts = key.split("/");
     parts.shift();
     if (parts.length !== urlParts.length) continue;
     for (let i = 0; i < parts.length; i++) {
+      if (parts[i] === wildcard) pathVariables.push(urlParts[i]);
       if (parts[i] !== urlParts[i] && parts[i] !== wildcard) {
         continue keysLoop;
       }
     }
     found = true;
+    r.pathVariables = pathVariables;
     routes[key](h);
     break;
   }
@@ -53,14 +66,6 @@ const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
 
 let routerUses = 0;
 
-export const routeGoer = {
-  go: (path: string) => {
-    console.error("Dommie router.go() was called before the router was initialized.");
-  },
-};
-
-export type R = typeof routeGoer;
-
 export const router = (routes: Routes, h: Templater, notFound?: Component) => {
   if (routerUses > 0) {
     throw new Error("Dommie router can only be called once");
@@ -75,12 +80,11 @@ export const router = (routes: Routes, h: Templater, notFound?: Component) => {
     afterDestroyed(() => {
       window.removeEventListener("popstate", popstate);
     });
-    routeGoer.go = (newPath: string) => {
+    r.go = (newPath: string) => {
       window.history.pushState({}, "", newPath);
       path.update(newPath);
     };
     h.custom({ subscribe: path, style: { display: "contents" }, nodeName: "dommie-router" }, () => {
-      console.log("path Updated", path.value);
       useRoutes(routes, h, notFound);
     });
   });
