@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test";
 
 const DEV_SERVER = "localhost:3000";
+const STATE_TEST = DEV_SERVER + "/state";
 
 // Stateful component
 test("An element subscribed to state that updates that same state is updated when the state changes", async ({
   page,
 }) => {
-  await page.goto(DEV_SERVER);
+  await page.goto(STATE_TEST);
 
   const buttonText1 = await page.getByTestId("test-click").textContent();
   expect(buttonText1).toBe("0");
@@ -21,7 +22,7 @@ test("An element subscribed to state that updates that same state is updated whe
 test("An element that is subscribed to state and is not the element that initiated the state change is changed", async ({
   page,
 }) => {
-  await page.goto(DEV_SERVER);
+  await page.goto(STATE_TEST);
 
   const button = page.getByTestId("test-click2");
   const subscribedDivText1 = await page.getByTestId("test-click2-div").textContent();
@@ -34,7 +35,7 @@ test("An element that is subscribed to state and is not the element that initiat
 test("State that is subscribed to the side effect of another state change is updated when the original changes", async ({
   page,
 }) => {
-  await page.goto(DEV_SERVER);
+  await page.goto(STATE_TEST);
 
   const sideEffectDivText = await page.getByTestId("test-sideeffect-div").textContent();
   expect(sideEffectDivText).toBe("Side Effect Example");
@@ -46,7 +47,7 @@ test("State that is subscribed to the side effect of another state change is upd
 test("An element that is subscribed to a boolean state is toggled when the state changes", async ({
   page,
 }) => {
-  await page.goto(DEV_SERVER);
+  await page.goto(STATE_TEST);
 
   const boolDiv = page.locator("#test-bool-div");
   const boolButton = page.locator("#test-bool-btn");
@@ -60,7 +61,7 @@ test("An element that is subscribed to a boolean state is toggled when the state
 test("An element that is subscribed to a list state is updated when the list state changes", async ({
   page,
 }) => {
-  await page.goto(DEV_SERVER);
+  await page.goto(STATE_TEST);
 
   const listButton = page.locator("#test-list-btn");
   const items = page.locator(".test-li");
@@ -79,7 +80,7 @@ test("An element that is subscribed to a list state is updated when the list sta
 });
 
 test("An element with a ref is focused on", async ({ page }) => {
-  await page.goto(DEV_SERVER);
+  await page.goto(STATE_TEST);
 
   const input = page.locator("#ref-input");
   await expect(input).toBeFocused();

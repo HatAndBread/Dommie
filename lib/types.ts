@@ -1,5 +1,6 @@
 import { ComponentBase } from "./template-builder";
 import type { State, StateSubscriber } from "./template-builder";
+import type { R } from "./route";
 
 export interface ComponentBaseInput {
   afterDestroyed: (callback: Function) => void;
@@ -7,6 +8,7 @@ export interface ComponentBaseInput {
   ref: () => () => HTMLElement | null;
   state: State;
   subscribe: StateSubscriber;
+  r: R;
 }
 
 export interface Templater extends AllElements {

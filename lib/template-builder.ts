@@ -2,6 +2,7 @@ import type { Templater, StateSubscriptions } from "./types";
 import { allEventListeners } from "./all-event-listeners";
 import { toSnakeCase } from "./strings";
 import { allHtmlElements, booleanAttributes } from "./html-elements";
+import { routeGoer } from "./route";
 import { DiffDOM } from "diff-dom";
 
 const COMPONENT_TAG = "component";
@@ -140,7 +141,7 @@ export function templateBuilder(root: HTMLElement) {
           afterDestroyCallbacks[element.id] = cb;
         };
         const subscribe = getSubscribe(element.id, stateSubscriptions);
-        cb({ afterMounted, afterDestroyed, ref, state, subscribe });
+        cb({ afterMounted, afterDestroyed, ref, state, subscribe, r: routeGoer });
       } else {
         cb();
       }
