@@ -6,19 +6,29 @@ export const main = (h: Template) => {
     const showAfterDestroy = state(false);
     const timesAfterDestroyCallbacksCalled = state(0);
     h.h1({ text: "This is the main page." });
-    h.button({ text: "Go to page A", click: () => r.go("/page-a") });
+    h.button({ text: "Go to page A", id: "go-to-a-btn", click: () => r.go("/page-a") });
     h.br();
-    h.button({ text: "Go to the state test page", click: () => r.go("/state") });
+    h.button({
+      text: "Go to the state test page",
+      id: "go-to-state-btn",
+      click: () => r.go("/state"),
+    });
     h.br();
-    h.button({ text: "Go to the nested route", click: () => r.go("/nested/route") });
+    h.button({
+      text: "Go to the nested route",
+      id: "go-to-nested-btn",
+      click: () => r.go("/nested/route"),
+    });
     h.br();
     h.button({
       text: "Go to test with wildcards",
+      id: "go-to-wildcards-btn",
       click: () => r.go("/this/123/is/456/a/789/test"),
     });
     h.br();
     h.button({
       text: "Go to test with wildcards 2",
+      id: "go-to-wildcards-2-btn",
       click: () => r.go("/this/123/is/456/a/789/test/abc"),
     });
     h.div({

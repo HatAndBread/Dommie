@@ -8,15 +8,14 @@ export const pageA = (h: Template) => {
     });
     const thing = state("Change me!");
     const updateThing = () => {
-      console.log("Updating thing");
-      thing.update(Math.random().toString());
+      thing.update("I was changed!");
     };
     div(() => {
       h1(() => {
         text("Hello, This is page A!");
       });
-      h.h3({ subscribe: thing, text: () => thing.value });
-      button({ click: updateThing, text: "Change the text" });
+      h.h3({ subscribe: thing, text: () => thing.value, id: "thing-text" });
+      button({ click: updateThing, text: "Change the text", id: "change-text-btn" });
     });
   });
 };
