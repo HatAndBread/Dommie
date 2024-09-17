@@ -9,8 +9,8 @@ export const routeWithWildcards2 = (h: Template) => {
         text("This is the second route with wildcards");
       });
       ul(() => {
-        r.pathVariables.forEach((p: string) => {
-          li({ text: p });
+        r.pathVariables.forEach((p: string, i) => {
+          li({ text: p, id: `path-variable-${i}` });
         });
       });
     });
