@@ -342,6 +342,58 @@ const App = (h: Template) => {
 app(App, "#app");
 ```
 
+## Single Page Applications
+
+Dommie can be used to build single-page applications (SPAs) by using the `router` function to define routes and components.
+The `r` object passed to the component contains the `go` function, which can be used to navigate to a different route.
+
+```typescript
+import app, { router } from "dommie";
+import type { Template } from "dommie";
+
+const Home = (h: Template) => {
+  const { component, div, button } = h;
+  return component(({r}) => {
+    div({ text: "Home" }, () => {
+      button({ text: "Go to About", click: () => r.go("/about") });
+    });
+  });
+};
+
+const About = (h: Template) => {
+  const { component, div } = h;
+  return component(() => {
+    div({ text: "About" });
+  });
+};
+
+const App = (h: Template) => {
+  const { div, component } = h;
+  return component(({r}) => {
+    div(() => {
+      router({
+        "/": Home,
+        "/about": About,
+      });
+    });
+  });
+};
+
+app(App, "#app");
+```
+
+### Wildcard Routes
+
+You can use wildcard routes by using the `*` character in the route path. This will match any route that starts with the specified path.
+
+```typescript
+router({
+  "/": Home,
+  "/about": About,
+  "/blog/*": Blog,
+});
+```
+
 ## Get Involved
 
 **Dommie** is open-source and welcomes contributions. If you find bugs or have ideas for improvements, feel free to [open an issue](https://github.com/hatandbread/dommie/issues) or submit a pull request.
