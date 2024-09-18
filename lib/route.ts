@@ -11,12 +11,14 @@ export const r = {
     console.error("Dommie router.go() was called before the router was initialized.");
   },
   pathVariables: [] as string[],
+  pathVariablesMap: {} as { [key: string]: string },
 };
 
 export type R = typeof r;
 
 const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
   r.pathVariables = [];
+  r.pathVariablesMap = {};
   let found = false;
 
   // Exact route
@@ -34,18 +36,23 @@ const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
   urlParts.shift();
   const wildcard = "*";
   const pathVariables = [];
+  const pathVariablesMap: { [key: string]: string } = {};
   keysLoop: for (const key in routes) {
     const parts = key.split("/");
     parts.shift();
     if (parts.length !== urlParts.length) continue;
     for (let i = 0; i < parts.length; i++) {
-      if (parts[i] === wildcard) pathVariables.push(urlParts[i]);
+      if (parts[i] === wildcard) {
+        pathVariables.push(urlParts[i]);
+        pathVariablesMap[parts[i - 1]] = urlParts[i];
+      }
       if (parts[i] !== urlParts[i] && parts[i] !== wildcard) {
         continue keysLoop;
       }
     }
     found = true;
     r.pathVariables = pathVariables;
+    r.pathVariablesMap = pathVariablesMap;
     routes[key](h);
     break;
   }
