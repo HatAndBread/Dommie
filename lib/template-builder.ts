@@ -1,15 +1,17 @@
 import type { Templater, StateSubscriptions } from "./types";
 import { allEventListeners } from "./all-event-listeners";
-import { toSnakeCase } from "./strings";
+import { handleStyle } from "./handle-style";
+import { handleSubscription } from "./handle-subscription";
+import { handleEventListeners } from "./handle-event-listeners";
 import { allHtmlElements, booleanAttributes } from "./html-elements";
 import { r } from "./route";
-import { DiffDOM } from "diff-dom";
-import { getDomDiffConfig } from "./dom-diff-config";
+import { getStateUpdater } from "./state-updater";
+import { ref, handleRefs } from "./refs";
 
 const COMPONENT_TAG = "component";
 const COMPONENT_ID_PREFIX = "dommie-component-";
 
-type Context = {
+export type Context = {
   element: HTMLElement;
   parent: HTMLElement;
   tag: string;
@@ -158,108 +160,8 @@ export function templateBuilder(root: HTMLElement) {
   return allElements;
 }
 
-const handleStyle = (context: Context) => {
-  const style = Object.entries(context.value)
-    .map(([styleKey, styleValue]) => {
-      return `${toSnakeCase(styleKey)}: ${typeof styleValue === "function" ? styleValue() : styleValue};`;
-    })
-    .join(" ");
-  context.element.setAttribute(context.key, style);
-};
-
-let uniqueSubId = 0;
-const handleSubscription = (context: Context) => {
-  const { shouldAppend, value } = context;
-  if (shouldAppend) {
-    const funcs: Function[] = [];
-    if (typeof value === "function") {
-      funcs.push(value);
-    } else if (Array.isArray(value)) {
-      value.forEach((v) => {
-        if (typeof v === "function") {
-          funcs.push(v);
-        } else if (typeof v === "object" && typeof v._updater === "function") {
-          funcs.push(v._updater);
-        } else {
-          throw new Error("Subscription array must contain only functions");
-        }
-      });
-    } else if (typeof value === "object" && typeof value._updater === "function") {
-      funcs.push(value._updater);
-    }
-    funcs.forEach((f) => {
-      const regenerator = () => context.$(context.tag, context.optionsOrCb, context.cb, false);
-      uniqueSubId++;
-      context.element.dataset.uniqueSubId = `${uniqueSubId}`;
-      if (context.functionSubscribersMap.get(f)) {
-        context.functionSubscribersMap.get(f)?.push([context.element, regenerator]);
-      } else {
-        context.functionSubscribersMap.set(f, [[context.element, regenerator]]);
-      }
-    });
-  }
-};
-
-let listenerId = 0;
-const handleEventListeners = (context: Context) => {
-  const { listenerList, element, value, shouldAppend, key } = context;
-  const eventDefinition = value;
-  const isArray = Array.isArray(eventDefinition);
-  let func: Function;
-  let args: any[] = [];
-  if (!isArray) {
-    func = eventDefinition;
-  } else if (
-    isArray &&
-    eventDefinition.length < 3 &&
-    typeof eventDefinition[0] === "function" &&
-    (Array.isArray(eventDefinition[1]) || eventDefinition[1] === undefined)
-  ) {
-    func = eventDefinition[0];
-    if (eventDefinition[1]) args = eventDefinition[1];
-  } else {
-    throw new Error(`Event listener given a bad value. Recieved ${key}, ${eventDefinition}`);
-  }
-  const myListenerId = listenerId.toString();
-  element.dataset.listenerIndex = myListenerId;
-  listenerId++;
-  const callback = async (e: Event) => await func(e, ...args);
-  const listener = {
-    eventType: key,
-    callback,
-    originalCallback: func,
-  };
-  listenerList.set(myListenerId, listener);
-  if (shouldAppend) {
-    element.addEventListener(key, callback);
-  }
-};
-
-let uniqueRefId = 0;
-const ref = () => {
-  const id = uniqueRefId.toString();
-  uniqueRefId++;
-  return function (): HTMLElement | null {
-    const el = arguments[0];
-    if (el) {
-      el.dataset.uniqueRefId = id;
-      return null;
-    } else {
-      return document.querySelector('[data-unique-ref-id="' + id + '"]');
-    }
-  };
-};
-
-const handleRefs = ({ value, element }: Context) => {
-  // value here is the closure in the ref function declared above 👆
-  if (typeof value !== "function") {
-    throw new Error("Ref must be a function");
-  }
-  value(element);
-};
-
-type FuncSubscriberMap = Map<Function, [Element, () => HTMLElement | Comment][]>;
-type ListenerList = Map<
+export type FuncSubscriberMap = Map<Function, [Element, () => HTMLElement | Comment][]>;
+export type ListenerList = Map<
   string,
   {
     eventType: string;
@@ -322,97 +224,7 @@ export interface StateObject<T> {
   value: T;
   update: (newValue: T) => void;
 }
-type StateUpdater = () => (e?: Event, args?: any[]) => void;
-const getStateUpdater = () => {
-  const functionSubscribersMap: FuncSubscriberMap = new Map();
-  const listenerList: ListenerList = new Map();
-  const afterMountCallbacks: { [key: string]: Function } = {};
-  const afterDestroyCallbacks: { [key: string]: Function } = {};
-  const stateSubscriptions: StateSubscriptions = new Map();
-  const stateUpdater: StateUpdater = () => {
-    const getFuncWrapper = () => {
-      const funcWrapper = async (e?: Event, args?: any[]) => {
-        if (!args) args = [];
-        // This function wraps all subscriber functions
-
-        // Create a new instance of the diffDOM library
-        const { config, afterDestroys, needListeners, needListenersRemoved, removedComponents } =
-          getDomDiffConfig(afterDestroyCallbacks);
-        const domDiffer = new DiffDOM(config);
-
-        const subscribers = functionSubscribersMap.get(funcWrapper);
-        subscribers?.forEach((subscriber) => {
-          const newEl = subscriber[1]();
-          let oldEl = subscriber[0] as HTMLElement;
-          const diff = domDiffer.diff(oldEl, newEl as HTMLElement);
-          if (!document.body.contains(oldEl)) {
-            // If the element is not in the dom yet, we need to add it.
-            // This happens when a component is rendered after the initial render
-            // e.g. a subscribe inside a conditional that is added and removed
-            const uniqueId = oldEl.dataset.uniqueSubId;
-            // can we do this closer to the actual element?
-            const result = document.body.querySelector(`[data-unique-sub-id="${uniqueId}"]`);
-            if (result) {
-              const diff = domDiffer.diff(result, newEl as HTMLElement);
-              domDiffer.apply(result, diff);
-              subscriber[0] = result;
-              oldEl = result as HTMLElement;
-            }
-          } else {
-            domDiffer.apply(oldEl, diff);
-          }
-          newEl.remove();
-          needListenersRemoved.forEach(([oldValue, newValue]) => {
-            const listenerToRemove = listenerList.get(oldValue);
-            let elToRemoveListenerFrom = oldEl.querySelector(
-              "[data-listener-index='" + newValue + "']",
-            );
-            if (elToRemoveListenerFrom && listenerToRemove) {
-              elToRemoveListenerFrom.removeEventListener(
-                listenerToRemove.eventType,
-                listenerToRemove.callback,
-              );
-            }
-            listenerList.delete(oldValue);
-          });
-          needListeners.forEach((index) => {
-            const listener = listenerList.get(index);
-            if (listener) {
-              let elToApplyListenerTo = oldEl.querySelector(
-                "[data-listener-index='" + index + "']",
-              );
-              if (elToApplyListenerTo) {
-                elToApplyListenerTo.addEventListener(listener.eventType, listener.callback);
-              }
-            }
-          });
-        });
-        // Exectute destroy callbacks
-        afterDestroys.forEach((cb) => setTimeout(cb));
-        // Remove "subscriptions" (state effects) from removed components
-        removedComponents.forEach((id) => {
-          stateSubscriptions.forEach((subs) => {
-            if (subs[id]) {
-              delete subs[id];
-            }
-          });
-        });
-      };
-      return funcWrapper;
-    };
-    const wrapper = getFuncWrapper();
-    functionSubscribersMap.set(wrapper, []);
-    return wrapper;
-  };
-  return {
-    functionSubscribersMap,
-    stateSubscriptions,
-    listenerList,
-    stateUpdater,
-    afterMountCallbacks,
-    afterDestroyCallbacks,
-  };
-};
+export type StateUpdater = () => (e?: Event, args?: any[]) => void;
 
 export class ComponentBase {
   public id: string;
