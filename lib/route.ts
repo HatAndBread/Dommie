@@ -1,4 +1,5 @@
 import type { ComponentBase } from "../lib/template-builder";
+import type { State } from "./app";
 import type { Templater } from "../lib/types";
 
 type Component = (h: Templater, ...args: any) => ComponentBase;
@@ -12,6 +13,7 @@ export const r = {
   },
   pathVariables: [] as string[],
   pathVariablesMap: {} as { [key: string]: string },
+  path: null as null | State<string>,
 };
 
 export type R = typeof r;
@@ -80,6 +82,7 @@ export const router = (routes: Routes, h: Templater, notFound?: Component) => {
   routerUses++;
   h.component(({ state, afterDestroyed }) => {
     const path = state(window.location.pathname);
+    r.path = path;
     const popstate = () => {
       path.update(window.location.pathname);
     };
