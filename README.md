@@ -69,7 +69,8 @@ Here’s a simple example of how to use Dommie to build a component:
 
 The easiest way to learn Dommie is to look at some example apps. Here are a few examples to get you started:
 
-- [Dommie World Weather App](https://github.com/HatAndBread/dommie-weather-example)
+- [Dommie World Weather App](https://github.com/HatAndBread/dommie-weather-example) -- **A simple weather app built with Dommie and the OpenMeteo API.**
+- [Breweries Of The World](https://breweries-of-the-world.vercel.app/) -- **A full-fledged SPA built with Dommie and the BreweryDB API.**
 
 ## Subscriptions
 Dommie enables reactive UIs through a simple state and subscription model. When the state updates, subscribed elements re-render automatically.
