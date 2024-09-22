@@ -1,7 +1,7 @@
 import type { Templater } from "./types";
 import { templateBuilder, ComponentBase } from "./template-builder";
 import type { StateObject } from "./template-builder";
-import { router } from "./route";
+import { router, initR } from "./route";
 
 export type Component = (h: Templater, ...args: any) => ComponentBase;
 export type Template = Templater;
@@ -16,5 +16,12 @@ export default (i: Component, el: string | HTMLElement) => {
     const err = "No element found: " + el;
     throw new Error(err);
   }
-  i(templateBuilder(element as HTMLElement));
+
+  const h = templateBuilder(element as HTMLElement);
+
+  h.component(({ state }) => {
+    // Initialize reouter path
+    initR(state("/"), state([] as string[]), state({}));
+    i(h);
+  });
 };

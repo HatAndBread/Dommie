@@ -1,4 +1,4 @@
-import type { Template } from "../build/app";
+import type { Template } from "../lib/app";
 
 export const nestedRoute = (h: Template) => {
   return h.component(() => {

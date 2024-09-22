@@ -8,7 +8,11 @@ import { routeWithWildcards } from "./route-with-wildcards.ts";
 import { routeWithWildcards2 } from "./route-with-wildcards2.ts";
 
 const t = (h: Template) => {
-  return h.component(() => {
+  return h.component(({ r, subscribe }) => {
+    subscribe(() => {
+      console.log(`Current path: ${r.path.value}`);
+    }, [r.path]);
+
     const routes = {
       "/": main,
       "/state": stateTest,

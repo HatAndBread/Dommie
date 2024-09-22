@@ -395,6 +395,29 @@ router({
 });
 ```
 
+### Routing Helpers
+
+The `r` object passed to the component contains the following routing helpers:
+
+- `go(path: string)`: Navigate to the specified path.
+- `path`: A reactive state that contains the current path.
+- `pathVariables`: A reactive state that contains an array of the variables extracted from the current path.
+- `pathVariablesMap`: A reactive state that contains an object mapping the variable names to their values.
+
+```typescript
+/*
+/blog/123/comments/456
+*/
+
+const myPage = (h: Template) => {
+  h.component(({r}) => {
+    console.log(r.path.value); // "/blog/123/comments/456"
+    console.log(r.pathVariables.value) // ["123", "456"]
+    console.log(r.pathVariablesMap.value) // { "blog": "123", "comments": "456" }
+  });
+};
+```
+
 ## Get Involved
 
 **Dommie** is open-source and welcomes contributions. If you find bugs or have ideas for improvements, feel free to [open an issue](https://github.com/hatandbread/dommie/issues) or submit a pull request.

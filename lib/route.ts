@@ -1,5 +1,5 @@
 import type { ComponentBase } from "../lib/template-builder";
-import type { State } from "./app";
+import type { State, Template } from "./app";
 import type { Templater } from "../lib/types";
 
 type Component = (h: Templater, ...args: any) => ComponentBase;
@@ -11,16 +11,28 @@ export const r = {
   go: (path: string) => {
     console.error("Dommie router.go() was called before the router was initialized.");
   },
-  pathVariables: [] as string[],
-  pathVariablesMap: {} as { [key: string]: string },
-  path: null as null | State<string>,
+  pathVariables: {} as State<string[]>,
+  pathVariablesMap: {} as State<{ [key: string]: string }>,
+  path: {} as State<string>,
+};
+
+export const initR = (
+  pathState: State<string>,
+  pathVariableState: State<string[]>,
+  pathVariableMapState: State<{ [key: string]: string }>,
+) => {
+  r.path = pathState;
+  r.pathVariables = pathVariableState;
+  r.pathVariablesMap = pathVariableMapState;
+  r.go = (newPath: string) => {
+    window.history.pushState({}, "", newPath);
+    r.path.update(newPath);
+  };
 };
 
 export type R = typeof r;
 
 const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
-  r.pathVariables = [];
-  r.pathVariablesMap = {};
   let found = false;
 
   // Exact route
@@ -53,8 +65,8 @@ const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
       }
     }
     found = true;
-    r.pathVariables = pathVariables;
-    r.pathVariablesMap = pathVariablesMap;
+    r.pathVariables.update(pathVariables);
+    r.pathVariablesMap.update(pathVariablesMap);
     routes[key](h);
     break;
   }
@@ -75,27 +87,24 @@ const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
 
 let routerUses = 0;
 
-export const router = (routes: Routes, h: Templater, notFound?: Component) => {
+export const router = (routes: Routes, h: Template, notFound?: Component) => {
   if (routerUses > 0) {
     throw new Error("Dommie router can only be called once");
   }
   routerUses++;
-  h.component(({ state, afterDestroyed }) => {
-    const path = state(window.location.pathname);
-    r.path = path;
+  h.component(({ r, afterDestroyed }) => {
     const popstate = () => {
-      path.update(window.location.pathname);
+      r.path.update(window.location.pathname);
     };
     window.addEventListener("popstate", popstate);
     afterDestroyed(() => {
       window.removeEventListener("popstate", popstate);
     });
-    r.go = (newPath: string) => {
-      window.history.pushState({}, "", newPath);
-      path.update(newPath);
-    };
-    h.custom({ subscribe: path, style: { display: "contents" }, nodeName: "dommie-router" }, () => {
-      useRoutes(routes, h, notFound);
-    });
+    h.custom(
+      { subscribe: r.path, style: { display: "contents" }, nodeName: "dommie-router" },
+      () => {
+        useRoutes(routes, h, notFound);
+      },
+    );
   });
 };
