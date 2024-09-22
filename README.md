@@ -343,80 +343,112 @@ const App = (h: Template) => {
 app(App, "#app");
 ```
 
-## Single Page Applications
+## Step-by-Step Guide to SPA with Dommie
 
-Dommie can be used to build single-page applications (SPAs) by using the `router` function to define routes and components.
-The `r` object passed to the component contains the `go` function, which can be used to navigate to a different route.
+**1. Setting up Routes**
+
+Dommie allows you to define multiple routes in your SPA using the router function. Routes are paths in the URL that map to specific components. The router takes an object where each key is a path and the value is a component to render.
+
+Here’s an example:
 
 ```typescript
 import app, { router } from "dommie";
 import type { Template } from "dommie";
 
 const Home = (h: Template) => {
-  const { component, div, button } = h;
-  return component(({r}) => {
-    div({ text: "Home" }, () => {
-      button({ text: "Go to About", click: () => r.go("/about") });
-    });
+  const { div, component } = h;
+  return component(() => {
+    div({ text: "Welcome to the Home page!" });
   });
 };
 
 const About = (h: Template) => {
-  const { component, div } = h;
+  const { div, component } = h;
   return component(() => {
-    div({ text: "About" });
+    div({ text: "This is the About page." });
   });
 };
+```
 
+**2. Integrating the Router into the Main Component**
+In your main app component, you call the router() function inside a component block. The router takes care of switching between components based on the current URL path.
+
+```typescript
 const App = (h: Template) => {
   const { div, component } = h;
-  return component(({r}) => {
+  return component(() => {
     div(() => {
       router({
-        "/": Home,
-        "/about": About,
+        "/": Home,    // When the path is '/', render the Home component
+        "/about": About, // When the path is '/about', render the About component
       });
     });
   });
 };
 
-app(App, "#app");
+app(App, "#app", { spa: true });
 ```
 
-### Wildcard Routes
+**3. Navigating Between Pages**
 
-You can use wildcard routes by using the `*` character in the route path. This will match any route that starts with the specified path.
+To navigate between routes, Dommie provides the r object with a go function. You can use this to programmatically navigate between different pages without reloading the page.
 
-```typescript
-router({
-  "/": Home,
-  "/about": About,
-  "/blog/*": Blog,
-});
-```
-
-### Routing Helpers
-
-The `r` object passed to the component contains the following routing helpers:
-
-- `go(path: string)`: Navigate to the specified path.
-- `path`: A reactive state that contains the current path.
-- `pathVariables`: A reactive state that contains an array of the variables extracted from the current path.
-- `pathVariablesMap`: A reactive state that contains an object mapping the variable names to their values.
+Here’s an example of how you could add buttons to navigate between pages:
 
 ```typescript
-/*
-/blog/123/comments/456
-*/
+const Home = (h: Template) => {
+  const { div, button, component } = h;
+  return component(({ r }) => {
+    div({ text: "Welcome to the Home page!" });
+    button({ text: "Go to About", click: () => r.go("/about") }); // Navigate to the About page
+  });
+};
 
-const myPage = (h: Template) => {
-  h.component(({r}) => {
-    console.log(r.path.value); // "/blog/123/comments/456"
-    console.log(r.pathVariables.value) // ["123", "456"]
-    console.log(r.pathVariablesMap.value) // { "blog": "123", "comments": "456" }
+const About = (h: Template) => {
+  const { div, button, component } = h;
+  return component(({ r }) => {
+    div({ text: "This is the About page." });
+    button({ text: "Go to Home", click: () => r.go("/") }); // Navigate back to the Home page
   });
 };
 ```
+
+**4. Enabling SPA Mode**
+
+In the call to app(), the third argument is an options object where you can enable the SPA mode by setting spa: true. This tells Dommie to manage the URL changes internally without reloading the page.
+
+```typescript
+app(App, "#app", { spa: true });
+```
+
+**5. Wildcard Routes (Optional)**
+
+You can define routes with dynamic segments using the * wildcard character. This allows matching paths like /blog/123/comments/456 where the numbers (or other path parts) can vary.
+
+Here’s an example of using a wildcard route:
+
+```typescript
+const Blog = (h: Template) => {
+  return h.component(({ r }) => {
+    console.log(r.path.value);  // Full path, e.g. "/blog/123/comments/456"
+    console.log(r.pathVariables.value); // Array of variables from the path, e.g. ["123", "456"]
+    console.log(r.pathVariablesMap.value); // Object with named variables, e.g. { blog: "123", comment: "456" }
+  });
+};
+
+router({
+  "/": Home,
+  "/about": About,
+  "/blog/*": Blog, // This will match any path that starts with /blog/
+});
+```
+
+### Key Points Recap:
+
+* Router Setup: Use router() to define the mapping of URL paths to components.
+*  Navigation: Use the r.go(path) function to change routes dynamically.
+* SPA Mode: Enable SPA by passing { spa: true } to app(), which prevents full page reloads.
+* Wildcard Routes: Use * in paths to capture dynamic parts of the URL.
 
 ## Get Involved
 

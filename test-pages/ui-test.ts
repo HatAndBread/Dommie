@@ -25,4 +25,4 @@ const t = (h: Template) => {
   });
 };
 
-app(t, "#app");
+app(t, "#app", { spa: true });
