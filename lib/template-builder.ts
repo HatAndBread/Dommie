@@ -3,7 +3,7 @@ import { allEventListeners } from "./all-event-listeners";
 import { handleStyle } from "./handle-style";
 import { handleSubscription } from "./handle-subscription";
 import { handleEventListeners } from "./handle-event-listeners";
-import { allHtmlElements, booleanAttributes } from "./html-elements";
+import { allHtmlElements, booleanAttributes, isSvg } from "./html-elements";
 import { r } from "./route";
 import { getStateUpdater } from "./state-updater";
 import { ref, handleRefs } from "./refs";
@@ -12,8 +12,8 @@ const COMPONENT_TAG = "component";
 const COMPONENT_ID_PREFIX = "dommie-component-";
 
 export type Context = {
-  element: HTMLElement;
-  parent: HTMLElement;
+  element: HTMLElement | SVGElement;
+  parent: HTMLElement | SVGElement;
   tag: string;
   key: string;
   value: any;
@@ -22,7 +22,12 @@ export type Context = {
   shouldAppend: boolean;
   functionSubscribersMap: FuncSubscriberMap;
   listenerList: ListenerList;
-  $: (tag: string, optionsOrCb: any, cb?: any, shouldAppend?: boolean) => Comment | HTMLElement;
+  $: (
+    tag: string,
+    optionsOrCb: any,
+    cb?: any,
+    shouldAppend?: boolean,
+  ) => Comment | HTMLElement | SVGElement;
 };
 
 let componentId = 0;
@@ -47,7 +52,7 @@ export function templateBuilder(root: HTMLElement) {
     afterDestroyCallbacks,
     stateSubscriptions,
   } = getStateUpdater();
-  const nesting = [root];
+  const nesting: (HTMLElement | SVGElement)[] = [root];
   function $(tag: string, optionsOrCb: any, cb?: any, shouldAppend = true) {
     const parent = nesting[nesting.length - 1];
     if (tag === "text") {
@@ -73,7 +78,10 @@ export function templateBuilder(root: HTMLElement) {
       cb = optionsOrCb;
       optionsOrCb = {};
     }
-    const element = document.createElement(tag);
+    const elIsSvgEl = isSvg(tag.toLowerCase());
+    const element = elIsSvgEl
+      ? document.createElementNS("http://www.w3.org/2000/svg", tag)
+      : document.createElement(tag);
     if (tag === COMPONENT_TAG) {
       optionsOrCb = { style: "display: contents;" };
       if (shouldAppend) {
@@ -160,7 +168,10 @@ export function templateBuilder(root: HTMLElement) {
   return allElements;
 }
 
-export type FuncSubscriberMap = Map<Function, [Element, () => HTMLElement | Comment][]>;
+export type FuncSubscriberMap = Map<
+  Function,
+  [Element, () => HTMLElement | SVGElement | Comment][]
+>;
 export type ListenerList = Map<
   string,
   {

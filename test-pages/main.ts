@@ -5,6 +5,28 @@ export const main = (h: Template) => {
   return h.component(({ r, state }) => {
     const showAfterDestroy = state(false);
     const timesAfterDestroyCallbacksCalled = state(0);
+
+    // <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+    //     <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
+    // </svg>
+
+    h.svg(
+      {
+        width: "100",
+        height: "100",
+        xmlns: "http://www.w3.org/2000/svg",
+      },
+      () => {
+        h.circle({
+          cx: "50",
+          cy: "50",
+          r: "40",
+          stroke: "black",
+          "stroke-width": "3",
+          fill: "red",
+        });
+      },
+    );
     h.h1({ text: "This is the main page." });
     h.button({ text: "Go to page A", id: "go-to-a-btn", click: () => r.go("/page-a") });
     h.br();
