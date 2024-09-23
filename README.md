@@ -36,7 +36,7 @@ yarn add dommie
 -- or --
 
 ```javascript
-import app from "https://unpkg.com/dommie@3.0.2/build/min/app.js"
+import app from "https://unpkg.com/dommie@3.0.3/build/min/app.js"
 // Or use a script tag in your HTML file. Check the latest version on unpkg.com
 ```
 etc.
