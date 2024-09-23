@@ -43,6 +43,8 @@ const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
       break;
     }
   }
+  r.pathVariables.update([]);
+  r.pathVariablesMap.update({});
   if (found) return;
 
   // Wildcard route
@@ -72,6 +74,8 @@ const useRoutes = (routes: Routes, h: Templater, notFound?: Component) => {
   }
   if (found) return;
 
+  r.pathVariables.update([]);
+  r.pathVariablesMap.update({});
   // Not found
   if (notFound) {
     notFound(h);
