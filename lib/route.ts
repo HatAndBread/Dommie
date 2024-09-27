@@ -16,6 +16,8 @@ export const r = {
   path: {} as State<string>,
 };
 
+let rInitialized = false;
+
 export const initR = (
   pathState: State<string>,
   pathVariableState: State<string[]>,
@@ -28,6 +30,7 @@ export const initR = (
     window.history.pushState({}, "", newPath);
     r.path.update(newPath);
   };
+  rInitialized = true;
 };
 
 export type R = typeof r;
@@ -96,6 +99,11 @@ export const router = (routes: Routes, h: Template, notFound?: Component) => {
     throw new Error("Dommie router can only be called once");
   }
   routerUses++;
+  if (!rInitialized) {
+    throw new Error(
+      `Dommie router used without being initialized. Did you forget to add the spa option? app(MyApp, "#app", {spa: true})`,
+    );
+  }
   h.component(({ r, afterDestroyed }) => {
     const popstate = () => {
       r.path.update(window.location.pathname);
