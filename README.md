@@ -133,9 +133,9 @@ const hello = (h: Template) => {
   const { div, button, component } = h;
 
   return component(({ state }) => {
-    let count = state(0);
+    const count = state(0);
     const updateCount = (_: Event, newNumber: number) => {
-      count += newNumber;
+      count.update(count.value + newNumber);
     };
 
     div(() => {
