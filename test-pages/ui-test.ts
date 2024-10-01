@@ -9,6 +9,7 @@ import { routeWithWildcards2 } from "./route-with-wildcards2.ts";
 
 const t = (h: Template) => {
   return h.component(({ r, subscribe }) => {
+    console.log(r.path.value);
     subscribe(() => {
       console.log(`Current path: ${r.path.value}`);
     }, [r.path]);

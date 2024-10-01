@@ -25,7 +25,7 @@ export default (i: Component, el: string | HTMLElement, options?: AppOptions) =>
   if (options?.spa) {
     h.component(({ state }) => {
       // Initialize reouter path
-      initR(state("/"), state([] as string[]), state({}));
+      initR(state(window.location.pathname), state([] as string[]), state({}));
       i(h);
     });
     return;
