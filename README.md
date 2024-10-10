@@ -1,16 +1,16 @@
 
-<img width="758" alt="dommie-logo" src="https://github.com/user-attachments/assets/8862c679-b865-4b5c-a4b5-aa2110268a88">
+<img width="300" alt="dommie-logo" src="https://github.com/user-attachments/assets/08182be5-2dd8-4990-85ae-53a766a232e1">
 
 # Dommie
-
-**Dommie** is a lightweight templating library for building dynamic, reactive user interfaces. It offers:
-
 - Dynamic creation of HTML elements
 - Component management with lifecycle hooks
 - State and subscription handling
 - Efficient DOM updates using DiffDOM
 
 With Dommie, you can create snappy, performant UIs without the overhead of larger frameworks.
+
+## Documentation
+Please refer to the [Dommie Tutorial](https://dommie-docs.vercel.app/tutorial) for usage.
 
 ## Why Dommie?
 Dommie is designed for developers who need a simple yet powerful way to build reactive UIs. It's a great fit for small to medium projects where simplicity, flexibility, and performance are key.
@@ -36,7 +36,7 @@ yarn add dommie
 -- or --
 
 ```javascript
-import app from "https://unpkg.com/dommie@3.0.3/build/min/app.js"
+import app from "https://unpkg.com/dommie@3.0.6/build/min/app.js"
 // Or use a script tag in your HTML file. Check the latest version on unpkg.com
 ```
 etc.
