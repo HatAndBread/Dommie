@@ -99,6 +99,18 @@ export function templateBuilder(root: HTMLElement) {
         }
       }
     };
+    if (typeof optionsOrCb === "string") {
+      element.appendChild(document.createTextNode(optionsOrCb));
+      optionsOrCb = {};
+    }
+    if (typeof cb === "string") {
+      element.appendChild(document.createTextNode(cb));
+      cb = undefined;
+    }
+    if (typeof cb === "object") {
+      optionsOrCb = cb;
+      cb = undefined;
+    }
     if (!optionsOrCb) optionsOrCb = {};
 
     for (let key in optionsOrCb) {

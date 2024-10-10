@@ -6,10 +6,6 @@ export const main = (h: Template) => {
     const showAfterDestroy = state(false);
     const timesAfterDestroyCallbacksCalled = state(0);
 
-    // <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-    //     <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
-    // </svg>
-
     h.svg(
       {
         width: "100",
@@ -68,5 +64,12 @@ export const main = (h: Template) => {
       text: "Toggle Show After Destroy",
       id: "toggle-show-after-destroy",
     });
+    h.h1("A string as an arg.", () => {
+      h.p("A string as a child.");
+    });
+    h.h1("A string with an option", {
+      style: "color: red;",
+    });
+    h.h1({ style: "color: pink" }, "Another string with an option");
   });
 };
