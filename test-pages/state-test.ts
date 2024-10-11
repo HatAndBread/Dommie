@@ -34,13 +34,13 @@ export const stateTest = (h: Template) => {
       button({
         "data-testid": "test-click",
         subscribe: testState1,
-        click: () => testState1.update(testState1.value + 1),
+        click: () => testState1.value++,
         text: () => `${testState1.value}`,
       });
       button({
         "data-testid": "test-click2",
         text: "Test 2",
-        click: () => testState2.update(testState2.value + 1),
+        click: () => testState2.value++,
       });
       div({ "data-testid": "test-click2-div", subscribe: testState2 }, () => {
         text(testState2.value);
@@ -50,7 +50,7 @@ export const stateTest = (h: Template) => {
       });
       button({
         id: "test-bool-btn",
-        click: () => testBool.update(!testBool.value),
+        click: () => (testBool.value = !testBool.value),
         text: "Toggle",
       });
       div({ subscribe: testBool }, () => {
@@ -60,7 +60,7 @@ export const stateTest = (h: Template) => {
       });
       button({
         id: "test-list-btn",
-        click: () => testList.update([...testList.value, false, true, false]),
+        click: () => (testList.value = [...testList.value, false, true, false]),
         text: "Add to list",
       });
       ul({ subscribe: testList, id: "test-list-ul" }, () => {

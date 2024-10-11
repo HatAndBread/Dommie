@@ -200,6 +200,16 @@ const getState = (stateUpdater: StateUpdater, stateSubscriptions: StateSubscript
       get value() {
         return value;
       },
+      set value(newValue: T) {
+        value = newValue;
+        updater();
+        const subs = stateSubscriptions.get(updater);
+        if (subs) {
+          Object.values(subs).forEach((funcArray) => {
+            funcArray.forEach((func) => func());
+          });
+        }
+      },
       update(newValue: T) {
         value = newValue;
         updater();
