@@ -36,7 +36,7 @@ yarn add dommie
 -- or --
 
 ```javascript
-import app from "https://unpkg.com/dommie@3.0.6/build/min/app.js"
+import app from "https://unpkg.com/dommie@3.0.9/build/min/app.js"
 // Or use a script tag in your HTML file. Check the latest version on unpkg.com
 ```
 etc.
@@ -84,7 +84,7 @@ const hello = (h: Template) => {
 
   return component(({ state }) => {
     const count = state(0);
-    const updateCount = () => count.update(count.value + 1);
+    const updateCount = () => count.value++;
 
     div(() => {
       div({ subscribe: count, text: () => count.value });
@@ -107,8 +107,8 @@ const hello: Component = (h: Template) => {
     const count = state(0);
     const title = state("Hello World!");
 
-    const updateCount = () => count.update(count.value + 1);
-    const updateTitle = () => title.update("Hello Dommie!");
+    const updateCount = () => count.value ++;
+    const updateTitle = () => (title.value = "Hello Dommie!");
 
     div({ subscribe: [count, title] }, () => {
       div({ text: () => count.value });
@@ -135,7 +135,7 @@ const hello = (h: Template) => {
   return component(({ state }) => {
     const count = state(0);
     const updateCount = (_: Event, newNumber: number) => {
-      count.update(count.value + newNumber);
+      count.value += newNumber;
     };
 
     div(() => {
@@ -187,7 +187,7 @@ const hello = (h: Template) => {
 
   return component(({ state }) => {
     const count = state(0);
-    const updateCount = () => count.update(count.value + 1);
+    const updateCount = () => count.value++;
 
     div(() => {
       div({ subscribe: count }, () => {
@@ -218,7 +218,7 @@ const hello = (h: Template) => {
 
   return component(({ afterMounted, state }) => {
     const catData = state<null | string>(null);
-    const updateCatData = (data: string) => catData.update(data);
+    const updateCatData = (data: string) => catData.value = data;
 
     afterMounted(async () => {
       const res = await fetch("https://meowfacts.herokuapp.com/");
@@ -245,7 +245,7 @@ const hello = (h: Template) => {
 
   return component(({ state, afterDestroyed }) => {
     const count = state(0);
-    const updateCount = () => count.update(count.value + 1);
+    const updateCount = () => count.value ++;
     const interval = setInterval(updateCount, 1000);
 
     afterDestroyed(() => {
@@ -271,7 +271,7 @@ const hello = (h: Template) => {
 
   return component(({ state, subscribe }) => {
     const count = state(0);
-    const updateCount = () => count.update(count.value + 1);
+    const updateCount = () => count.value++;
     subscribe(() => {
       // This will run whenever the count changes
       console.log("Count has changed to", count.value);
