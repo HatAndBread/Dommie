@@ -210,15 +210,9 @@ const getState = (stateUpdater: StateUpdater, stateSubscriptions: StateSubscript
           });
         }
       },
+      // Here for backwards compatibility
       update(newValue: T) {
-        value = newValue;
-        updater();
-        const subs = stateSubscriptions.get(updater);
-        if (subs) {
-          Object.values(subs).forEach((funcArray) => {
-            funcArray.forEach((func) => func());
-          });
-        }
+        this.value = newValue;
       },
       get _updater() {
         return updater;

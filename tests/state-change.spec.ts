@@ -89,3 +89,13 @@ test("An element with a ref is focused on", async ({ page }) => {
   const input2 = page.locator("#ref-input2");
   await expect(input2).toBeFocused();
 });
+
+test("The `update` method of state updates state", async ({ page }) => {
+  await page.goto(STATE_TEST);
+
+  const btn = page.locator("#update-test-btn");
+  const textDiv = page.locator("#update-test-text");
+  await expect(textDiv).toHaveText("0");
+  await btn.click();
+  await expect(textDiv).toHaveText("1");
+});

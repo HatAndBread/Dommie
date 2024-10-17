@@ -12,6 +12,7 @@ export const stateTest = (h: Template) => {
     };
     afterMounted(fetchCatData);
 
+    const updateTest = state(0);
     const testState1 = state(0);
     const testState2 = state(0);
     const testState3 = state("Side Effect Example");
@@ -82,6 +83,14 @@ export const stateTest = (h: Template) => {
       button({ click: () => inputRef2()?.focus(), id: "focus-btn", text: "Focus" });
       input({ type: "text", ref: inputRef, id: "ref-input" });
       input({ type: "text", ref: inputRef2, id: "ref-input2" });
+      h.button({
+        click: () => updateTest.update(updateTest.value + 1),
+        text: "Update test",
+        id: "update-test-btn",
+      });
+      h.div({ subscribe: updateTest, id: "update-test-text" }, () => {
+        h.text(updateTest.value);
+      });
     });
   });
 };
